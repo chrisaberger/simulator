@@ -105,6 +105,9 @@ class Interpolator(torch.autograd.Function):
         plt.show()
 
     def plot(self):
+        """
+        Plot the forwards interpolation first, then the backwards interpolation.
+        """   
         # Forwards plot
         self.__plot_vals(self.xin, self.yin, self.__eval_forward)
         # Backwards plot

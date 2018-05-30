@@ -5,13 +5,26 @@ import torch
 a_interp = torch.tensor([1.0,0.0,-1.0,2.0], requires_grad=True)
 a_actual = torch.tensor([1.0,0.0,-1.0,2.0], requires_grad=True)
 
-delta = 0.01
-hmin = 0.01
 sin = torch.sin
-
 isin = interp.Interpolator(sin)
+
+"""
+Grid the points using an adaptive method.
+
+Each subinterval [x(i),x(i+1)] is either <= hmin in length or has the property 
+that at its midpoint m, |f(m) - L(m)| <= delta where L(x) is the line that 
+connects (x(i),y(i)) and (x(i+1),y(i+1)).
+"""
+delta = 0.01 
+hmin = 0.01
 isin.adapt(0, 10, delta, hmin)
+
+"""
+Plot the forwards interpolation first, then the backwards interpolation.
+"""
 isin.plot()
+
+# Forwards pass.
 sin_fn = isin.apply(a_interp, isin)
 
 print("Forward Interp")
