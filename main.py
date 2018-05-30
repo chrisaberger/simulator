@@ -11,13 +11,13 @@ isin = interp.Interpolator(sin)
 """
 Grid the points using an adaptive method.
 
+Will adapt points in the range [start, end].
+
 Each subinterval [x(i),x(i+1)] is either <= hmin in length or has the property 
 that at its midpoint m, |f(m) - L(m)| <= delta where L(x) is the line that 
 connects (x(i),y(i)) and (x(i+1),y(i+1)).
 """
-delta = 0.01 
-hmin = 0.01
-isin.adapt(0, 10, delta, hmin)
+isin.adapt(start=0, end=10, delta=0.01, hmin=0.01)
 
 """
 Plot the forwards interpolation first, then the backwards interpolation.
