@@ -9,13 +9,12 @@ class Interpolator(torch.autograd.Function):
     torch.autograd.Function and implementing the forward and backward passes
     which operate on Tensors.
     """
-
     def __init__(self, fn, kind='linear'):
         """
         Initializes the function we will interpolate.
         """
         self.fn = fn
-        self.kind = self.kind
+        self.kind = kind
 
     def interp1d(self, xin):
         """
@@ -99,8 +98,7 @@ class Interpolator(torch.autograd.Function):
         xnew = torch.from_numpy(np.arange(minval, maxval, 1/3600))
         ynew = fn(xnew)
 
-        print("Forward Memory Required: " + str(len(self.xin)*2*8) + " bytes")
-        print("Backward Memory Required: " + str(len(self.xin_grad)*2*8) + " bytes")
+        print("Memory Required: " + str(len(xin)*2*8) + " bytes")
 
         plt.plot(xin.numpy(), yin.numpy(), 'o',
                  xnew.numpy(), ynew.numpy(), '-')
@@ -170,7 +168,8 @@ class Interpolator(torch.autograd.Function):
         In the forward pass we receive a Tensor containing the input and return
         a Tensor containing the output. ctx is a context object that can be used
         to stash information for backward computation. You can cache arbitrary
-        objects for use in the backward pass using the ctx.save_for_backward method.
+        objects for use in the backward pass using the ctx.save_for_backward 
+        method.
         """
         #ctx.save_for_backward(input)
 
@@ -193,9 +192,9 @@ class Interpolator(torch.autograd.Function):
     @staticmethod
     def backward(ctx, grad_output):
         """
-        In the backward pass we receive a Tensor containing the gradient of the loss
-        with respect to the output, and we need to compute the gradient of the loss
-        with respect to the input.
+        In the backward pass we receive a Tensor containing the gradient of the 
+        loss with respect to the output, and we need to compute the gradient of 
+        the loss with respect to the input.
         """
         # TODO: Is it right to just do 'grad_input' * 'grad_output'. I think
         # so...check up on yo chain rule.

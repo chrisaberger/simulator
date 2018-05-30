@@ -2,8 +2,8 @@ import interpolator as interp
 import torch.nn.functional as F
 import torch
 
-a_interp = torch.tensor([1.0,0.0,-1.0,2.0],requires_grad=True)
-a_actual = torch.tensor([1.0,0.0,-1.0,2.0],requires_grad=True)
+a_interp = torch.tensor([1.0,0.0,-1.0,2.0], requires_grad=True)
+a_actual = torch.tensor([1.0,0.0,-1.0,2.0], requires_grad=True)
 
 delta = 0.01
 hmin = 0.01
