@@ -10,20 +10,20 @@ class Interpolator(torch.autograd.Function):
     which operate on Tensors.
     """
 
-    def __init__(self, fn):
+    def __init__(self, fn, kind='linear'):
         """
         Initializes the function we will interpolate.
         """
         self.fn = fn
-        self.kind = 'linear'
+        self.kind = self.kind
 
-    def interp1d(self, xin, kind='linear'):
+    def interp1d(self, xin):
         """
-        Stores the grid of points we will use to perform interpolation.
+        Stores the static grid of points ('xin') we will use to perform 
+        interpolation.
         """
-        self.kind = kind
         self.xin, indices = torch.sort(xin)
-        self.yin = self.fn(self.xin)        
+        self.yin = self.__eval_forward(self.xin)        
 
     def __eval_forward(self, inp):
         result = self.fn(torch.tensor(inp, dtype=torch.float64))
@@ -37,7 +37,7 @@ class Interpolator(torch.autograd.Function):
         dummy_out = self.fn(dummy_in)
         # Backwards must be called on a scalar. So if our input/output is not
         # a scalar sum the tensor before calling backward (will force grads of
-        # 1).
+        # 1 during evaluation).
         if dummy_in.size() != torch.Size([]):
             dummy_out = dummy_out.sum()
         dummy_out.backward()
@@ -100,21 +100,23 @@ class Interpolator(torch.autograd.Function):
         ynew = fn(xnew)
 
         print("Forward Memory Required: " + str(len(self.xin)*2*8) + " bytes")
-        print("backward Memory Required: " + str(len(self.xin_grad)*2*8) + " bytes")
+        print("Backward Memory Required: " + str(len(self.xin_grad)*2*8) + " bytes")
 
         plt.plot(xin.numpy(), yin.numpy(), 'o',
                  xnew.numpy(), ynew.numpy(), '-')
         plt.show()
 
     def plot(self):
+        # Forwards plot
         self.__plot_vals(self.xin, self.yin, self.__eval_forward)
+        # Backwards plot
         self.__plot_vals(self.xin_grad, self.yin_grad, self.__eval_backward)
 
     def __nearest(self, xout, x0, x1, y0, y1):
         """
-        Simply finds and returns the y value ('y0' or 'y1') whose associated x value 
-        ('x0' or 'x1') is closer to 'xout'. For x values that are equally distant
-        this method rounds up.  
+        Simply finds and returns the y value ('y0' or 'y1') whose associated x 
+        value ('x0' or 'x1') is closer to 'xout'. For x values that are equally 
+        distant this method rounds up.  
         """
         return np.where(np.abs(xout - x0) < np.abs(xout - x1), y0, y1)
 
