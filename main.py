@@ -1,7 +1,6 @@
-import interpolator as interp
+import functions as fn
 import torch.nn.functional as F
 import torch
-from quantize import * 
 import logging
 from datetime import datetime
 import os
@@ -12,7 +11,7 @@ def test_interpolate():
     a_actual = torch.tensor([1.0,0.0,-1.0,2.0], requires_grad=True)
 
     sin = torch.sin
-    isin = interp.Interpolator(sin)
+    isin = fn.Interpolator(sin)
 
     """
     Grid the points using an adaptive method.
@@ -48,8 +47,21 @@ def test_interpolate():
     print(a_actual.grad)
 
 def test_quantize():
-    a = torch.randn(1000,1000)
-    
+    a = torch.tensor(torch.randn(10,10), requires_grad=True)
+    b = a.clone()
+    sin = torch.sin
+    qsin = fn.Quantizer(sin, 8)
+    qsin.grab_backward()
+
+    print(a)
+    sin_out = qsin.apply(a, qsin)
+    sin(a).sum().backward()
+    print("A GRAD")
+    print(a.grad)
+    exit()
+    #sin_out.sum().backward()
+    #exit()
+
     print(a)
     b = a.clone()
     #print(a)
@@ -65,9 +77,15 @@ def test_quantize():
     print("Quantize Old: " + str(t1-t0))
     print(b)
 
+    sin = torch.sin
+
+
+
 if not os.path.exists("log"):
     os.makedirs("log")
 
 filename = str(datetime.now().strftime('%Hh%Mm%Ss_%m-%d-%Y'))+".log"
 logging.basicConfig(filename="log/"+filename,level=logging.DEBUG)
+
 test_quantize()
+#test_interpolate()

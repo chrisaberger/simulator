@@ -101,7 +101,7 @@ def quantize_float(num, n_quantized_exp, n_quantized_mantissa):
         # if you get Nan or Inf just return it.
         return num
 
-    sign = 1-2*("1"==binary_number[-n_input_bits:-(n_input_bits-1)]\
+    sign = 1-2*("1"==binary_number[-n_input_bits:-(n_input_bits-1)] \
                 .rjust(1,"0"))
 
     #logging.debug("Mantissa: " + str(mantissa_float))
@@ -125,7 +125,7 @@ def quantize_fp_(input, n_exponent_bits, n_mantissa_bits):
     in_shape = input.shape
     d_1 = input.reshape(input.numel())
     new_tensor = [quantize_float(i, n_exponent_bits, n_mantissa_bits) for i in d_1]
-    input.data = torch.tensor(new_tensor, dtype=input.dtype).reshape(in_shape).data
+    input.data = torch.tensor(new_tensor, dtype=input.dtype, requires_grad=input.requires_grad).reshape(in_shape).data
 
 
 # Monkey patch torch.Tensor
@@ -133,7 +133,6 @@ torch.Tensor.quantize_ = quantize_
 torch.Tensor.saturate_ = saturate_
 
 torch.Tensor.quantize_fp_ = quantize_fp_
-torch.Tensor.saturate_ = saturate_
 
 #torch.cuda.FloatTensor.quantize_ = quantize_
 #torch.cuda.FloatTensor.saturate_ = saturate_
