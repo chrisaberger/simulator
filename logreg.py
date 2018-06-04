@@ -15,8 +15,6 @@ def build_model(input_dim, output_dim):
     model = torch.nn.Sequential()
     model.add_module("linear",
                      torch.nn.Linear(input_dim, output_dim, bias=True))
-    #model.add_module("linear2",
-    #                 torch.nn.Linear(output_dim, 1, bias=False))
     return model
 
 
