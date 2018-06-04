@@ -4,6 +4,8 @@ from collections import namedtuple
 import logging
 import os
 
+# Modified from https://github.com/szagoruyko/pytorchviz/blob/master/torchviz/dot.py
+
 class SizeUsage:
     def __init__(self):
         self.weights_bytes = 0
