@@ -1,4 +1,3 @@
-from graphviz import Digraph
 import torch
 from torch.autograd import Variable
 from collections import namedtuple
