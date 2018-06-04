@@ -31,90 +31,6 @@ def saturate_(input, scale_factor, bits):
     max_val = (bound-1) * scale_factor
     input.clamp_(min_val, max_val)
 
-def binRep(num):
-    binNum = bin(ctypes.c_uint.from_buffer(ctypes.c_float(num)).value)[2:]
-    logging.debug("bits: " + binNum.rjust(32,"0"))
-    mantissa = "1" + binNum[-23:]
-    logging.debug("sig (bin): " + mantissa.rjust(24))
-    mantInt = int(mantissa,2)/2**23
-    logging.debug("sig (float): " + str(mantInt))
-    base = int(binNum[-31:-23],2)-127
-    logging.debug("base:" + str(base))
-    sign = 1-2*("1"==binNum[-32:-31].rjust(1,"0"))
-    logging.debug("sign:" + str(sign))
-    logging.debug("recreate:" + str(sign*mantInt*(2**base)))
-
-def quantize_float(num, n_quantized_exp, n_quantized_mantissa):
-    n_input_bits = None
-    n_input_mantissa = None
-    n_input_mantissa = None
-    binary_number = None
-    special_exponent = None
-
-    if num.dtype == torch.float64:
-        n_input_bits = 64
-        n_input_mantissa = 52
-        n_input_exponent = 11
-        special_exponent = int("11111111111",2)
-        # The [2:] strips off the '0b' in the returned string.
-        binary_number = \
-            bin(ctypes.c_ulong.from_buffer(ctypes.c_double(num)).value)[2:]
-    elif num.dtype == torch.float32:
-        n_input_bits = 32
-        n_input_mantissa = 23
-        n_input_exponent = 8
-        special_exponent = int("11111111",2)
-        # The [2:] strips off the '0b' in the returned string.
-        binary_number = \
-            bin(ctypes.c_uint.from_buffer(ctypes.c_float(num)).value)[2:]
-    else:
-        raise ValueError("Type not accepted for quantization (only float and double)")
-
-    # Mantissa is 1.****** 
-    mantissa_binary = "1" + binary_number[-n_input_mantissa:]
-    mantissa_binary.rjust(n_input_mantissa+1)
-
-    # Use base 2 during cast.
-    mantissa_int = int(mantissa_binary, 2)
-
-    # Chop off the mantissa bits that no longer fit.
-    mantissa_int = ( (mantissa_int >> (n_input_mantissa-n_quantized_mantissa)) \
-                         << (n_input_mantissa-n_quantized_mantissa) )
-    mantissa_float = mantissa_int/2**n_input_mantissa
-
-    exponent = int(binary_number[-(n_input_bits-1):-n_input_mantissa], 2)
-
-    # special numbers: e = 0 , means signifigand is subnormal.
-    #       (−1)^signbit× 2^(min_exp) x 0.significandbits
-    # e = 1111..., +inifinity when mantissa = 0, NaN when mantissa ne 0.
-    if exponent != 0 and exponent != special_exponent:
-        bias = pow(2, n_input_exponent-1) - 1
-        exponent = exponent - bias
-        # Clamp the exponent in the allowed range.
-        quantized_exponent_max = pow(2, n_quantized_exp-1) - 1
-        # (lose 1 to inf lose 1 to subnormal)
-        quantized_exponent_min = - (pow(2, n_quantized_exp-1) - 2) 
-        exponent = quantized_exponent_max if exponent > quantized_exponent_max \
-                                          else exponent 
-        exponent = quantized_exponent_min if exponent < quantized_exponent_min \
-                                          else exponent
-    elif exponent == special_exponent:
-        # if you get Nan or Inf just return it.
-        return num
-
-    sign = 1-2*("1"==binary_number[-n_input_bits:-(n_input_bits-1)] \
-                .rjust(1,"0"))
-
-    print("Mantissa: " + str(mantissa_float))
-    print("Exponent: " + str(exponent))
-    print("Sign: " + str(sign))
-
-    #logging.debug("Mantissa: " + str(mantissa_float))
-    #logging.debug("Exponent: " + str(exponent))
-    #logging.debug("Sign: " + str(sign))
-
-    return sign * mantissa_float * (2**exponent)
-
 class QuantizeFP:
     def __init__(self, dtype):
         if dtype == np.float32:
@@ -159,11 +75,12 @@ def quantize_new(input, n_exponent_bits, n_mantissa_bits):
     mantissa = np.bitwise_or(np.bitwise_and(new_np_array, and_array), or_array)
     mantissa_shift = q.n_mantissa - n_mantissa_bits
     mantissa = np.left_shift(np.right_shift(mantissa, mantissa_shift), 
-                             mantissa_shift)
+                                            mantissa_shift)
     mantissa_float = mantissa/2**(q.n_mantissa)
 
     bias = pow(2, q.n_exponent-1) - 1
-    exponent_raw = np.right_shift(np.left_shift(new_np_array, 1), (q.n_mantissa+1) )
+    exponent_raw = np.right_shift(
+                        np.left_shift(new_np_array, 1), (q.n_mantissa+1) )
     exponent = exponent_raw.astype(np.int) - bias
     
     # Clamp the exponent in the allowed range.
@@ -180,10 +97,6 @@ def quantize_new(input, n_exponent_bits, n_mantissa_bits):
     sign_val = np.full(shape=input.shape, fill_value=-1, dtype=q.fp_type)
     sign_val.fill(-1)
     sign = np.power(sign_val, sign)
-
-    #print(sign)
-    #print(mantissa_float)
-    #print(exp_val)
 
     # special numbers: e = 0 , means signifigand is subnormal.
     #       (−1)^signbit× 2^(min_exp) x 0.significandbits

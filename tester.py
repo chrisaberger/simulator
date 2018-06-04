@@ -46,19 +46,23 @@ def test_interpolate():
     print(a_actual.grad)
 
 def test_quantize():
-    a = torch.tensor([0.0003, -2.2223452345])
+    a = torch.randn(5000,5000)
     
     print(a)
     b = a.clone()
-    #print(a)
+
     t0 = time.time()
-    a.quantize_fp_(n_exponent_bits=5, n_mantissa_bits=5)
+    a.quantize_fp_(n_exponent_bits=4, n_mantissa_bits=5)
+    #a = a*a
+    print(len(a))
     t1 = time.time()
     print("Quantize FP: " + str(t1-t0))
     print(a)
     
     t0 = time.time()
     b.quantize_(1, 11)
+    #b = b*b
+    print(len(b))
     t1 = time.time()
     print("Quantize Old: " + str(t1-t0))
     print(b)
