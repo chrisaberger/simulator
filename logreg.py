@@ -4,9 +4,10 @@ import torch
 from torch.autograd import Variable
 from torch import optim
 
-from traverse import *
 from data_util import load_mnist
 
+import sys
+import traverse as itr
 
 def build_model(input_dim, output_dim):
     # We don't need the softmax layer here since CrossEntropyLoss already
@@ -30,21 +31,21 @@ def train(model, loss, optimizer, x_val, y_val):
     fx = model.forward(x)
     output = loss.forward(fx, y)
 
-    summary = traverse(fx, params=dict(model.named_parameters()), 
-                      bytes_per_elem=4, log_file="fx.log")
+    summary = itr.traverse(fx, params=dict(model.named_parameters()), 
+                      bytes_per_elem=4, log="fx")
     
     print("\n" + str(summary))
 
-    summary = traverse(output, params=dict(model.named_parameters()), 
-                      bytes_per_elem=4, log_file="output_fwd.log")
+    summary = itr.traverse(output, params=dict(model.named_parameters()), 
+                      bytes_per_elem=4, log="output_fwd")
     
     print("\n" + str(summary))
 
     # Backward
     output.backward()
 
-    summary = traverse(output, params=dict(model.named_parameters()), 
-                      bytes_per_elem=4, log_file="output_bckwrd.log")
+    summary = itr.traverse(output, params=dict(model.named_parameters()), 
+                      bytes_per_elem=4, log="output_bckwrd")
 
     print("\n" + str(summary))
 
