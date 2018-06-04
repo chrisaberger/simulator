@@ -46,7 +46,6 @@ def traverse(var, params, bytes_per_elem=4, log="traversal"):
         return '(' + (', ').join(['%d' % v for v in size]) + ')'
 
     def add_nodes(var):
-        global weights_bytes, grad_weights_bytes
         if var not in seen:
             # Check to see if this is an input tensor?
             if torch.is_tensor(var):
