@@ -85,10 +85,9 @@ def quantize_new(input, n_exponent_bits, n_mantissa_bits):
     
     # Clamp the exponent in the allowed range.
     quantized_exponent_max = pow(2, n_exponent_bits-1) - 1
-    exponent[exponent > quantized_exponent_max] = quantized_exponent_max
     # (lose 1 to inf lose 1 to subnormal)
     quantized_exponent_min = - (pow(2, n_exponent_bits-1) - 2) 
-    exponent[exponent < quantized_exponent_min] = quantized_exponent_min
+    np.clip(exponent, quantized_exponent_min, quantized_exponent_max, out=exponent)
 
     exp_val = np.full(shape=input.shape, fill_value=2, dtype=q.fp_type)
     exp_val = np.power(exp_val, exponent)
@@ -98,25 +97,19 @@ def quantize_new(input, n_exponent_bits, n_mantissa_bits):
     sign_val.fill(-1)
     sign = np.power(sign_val, sign)
 
+    # Given S, E, and M fields, an IEEE floating-point number has the value:
+    #-1S × (1.0 + 0.M) × 2^E-bias
+    reconstructed_val = (sign * mantissa_float * exp_val)
+
     # special numbers: e = 0 , means signifigand is subnormal.
     #       (−1)^signbit× 2^(min_exp) x 0.significandbits
-    # e = 1111..., +inifinity when mantissa = 0, NaN when mantissa ne 0.
-    reconstructed_val = (sign * mantissa_float * exp_val)
-  
-    exponent_filter = np.logical_and(exponent_raw != 0, exponent_raw != q.special_exponent)
+    # e = 1111..., +inifinity when mantissa = 0, NaN when mantissa ne 0.  
+    exponent_filter = np.logical_and( exponent_raw != 0, 
+                                      exponent_raw != q.special_exponent)
+    
     return np.where(exponent_filter, reconstructed_val, input)
 
 def quantize_fp_(input, n_exponent_bits, n_mantissa_bits):
-    # Given S, E, and M fields, an IEEE floating-point number has the value:
-    #-1S × (1.0 + 0.M) × 2^E-bias
-    # exponent can be in range +2^(E-1)-1
-    # to -(2^(E-1)-1-1) (lose 1 to inf lose 1 to subnormal)
-    # 
-    # special numbers: e = 0 , means signifigand is subnormal.
-    #       (−1)^signbit× 2^(min_exp) x 0.significandbits
-    # 
-    # e = 1111..., +inifinity when mantissa = 0, NaN when mantissa ne 0.
-
     in_shape = input.shape
     d_1 = input.reshape(input.numel())
     new_array = quantize_new(d_1.numpy(), n_exponent_bits, n_mantissa_bits)
