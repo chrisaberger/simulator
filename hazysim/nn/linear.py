@@ -3,8 +3,9 @@ import torch
 from torch.nn.parameter import Parameter
 import torch.nn.functional as F
 from .functions import *
+from .baselayer import BaseLayer
 
-class Linear(torch.nn.Module):
+class Linear(BaseLayer):
     r"""Applies a linear transformation to the incoming data: :math:`y = Ax + b`
 
     Args:
@@ -31,9 +32,7 @@ class Linear(torch.nn.Module):
         >>> output = m(input)
         >>> print(output.size())
     """
-
-    def __init__(self, in_features, out_features, bias=True,
-                 n_exponent_bits=None, n_mantissa_bits=None):
+    def __init__(self, in_features, out_features, bias=True):
         super(Linear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -43,19 +42,7 @@ class Linear(torch.nn.Module):
         else:
             self.register_parameter('bias', None)
         self.reset_parameters()
-        
-        self.n_exponent_bits = 1
-        self.n_mantissa_bits = 1
-
-        def hookFunc(module, gradInput, gradOutput):
-            newGradIn = ()
-            for gi in gradInput:
-                if gi is not None:
-                    gi.quantize_(self.n_exponent_bits, self.n_mantissa_bits)
-                newGradIn += (gi,)
-            return newGradIn
-
-        self.register_backward_hook(hookFunc) 
+        self.register_precision()
 
     def reset_parameters(self):
         stdv = 1. / math.sqrt(self.weight.size(1))
