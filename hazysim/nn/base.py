@@ -1,8 +1,8 @@
 import torch
 
-class BaseLayer(torch.nn.Module):
+class Base(torch.nn.Module):
     def __init__(self):
-        super(BaseLayer, self).__init__()
+        super(Base, self).__init__()
 
         self.precision_hook_fn_key = None
         self.n_exponent_bits = None

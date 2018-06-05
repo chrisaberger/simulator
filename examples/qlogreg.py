@@ -6,6 +6,7 @@ from torch import optim
 
 from data_util import load_mnist
 import hazysim.nn as sim
+
 def build_model(input_dim, output_dim):
     # We don't need the softmax layer here since CrossEntropyLoss already
     # uses it internally.

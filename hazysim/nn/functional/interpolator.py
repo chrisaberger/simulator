@@ -2,8 +2,9 @@ import torch
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy import interpolate
 
-class Interpolator(torch.autograd.Function):
+class FInterpolator(torch.autograd.Function):
     """
     We can implement our own custom autograd Functions by subclassing
     torch.autograd.Function and implementing the forward and backward passes
@@ -15,14 +16,8 @@ class Interpolator(torch.autograd.Function):
         """
         self.fn = fn
         self.kind = kind
-
-    def interp1d(self, xin):
-        """
-        Stores the static grid of points ('xin') we will use to perform 
-        interpolation.
-        """
-        self.xin, indices = torch.sort(xin)
-        self.yin = self.__eval_forward(self.xin)        
+        self.forward_fn_interpolate = None
+        self.backward_fn_interpolate = None   
 
     def __eval_forward(self, inp):
         result = self.fn(torch.tensor(inp, dtype=torch.float64))
@@ -44,7 +39,7 @@ class Interpolator(torch.autograd.Function):
         # Just return the python value if it is a scalar.
         if result.size() == torch.Size([]):
             result = result.numpy().item(0)
-        return result     
+        return result 
 
     def __recurse_adapt(self, xL, xR, delta, hmin, x, y, fn):
         if xR - xL <= hmin:
@@ -63,7 +58,7 @@ class Interpolator(torch.autograd.Function):
                 self.__recurse_adapt(xL, mid, delta, hmin, x, y, fn)
                 self.__recurse_adapt(mid, xR, delta, hmin, x, y, fn)
 
-    def adapt(self, start, end, delta, hmin):
+    def adapt_linear(self, start, end, delta, hmin):
         """
         Adaptive Piecewise Linear Interpolation from Section 3.1.4. 
         http://www.cs.cornell.edu/courses/cs4210/2014fa/CVLBook/CVL3.PDF
@@ -78,16 +73,25 @@ class Interpolator(torch.autograd.Function):
         y.append(self.__eval_forward(end)) # Stitch the end value on.
         self.xin = torch.tensor(x, dtype=torch.float64)
         self.yin = torch.tensor(y, dtype=torch.float64)
+        self.forward_fn_interpolate = interpolate.interp1d(self.xin, 
+                                                           self.yin, 
+                                                           kind=self.kind)
 
         # Backwards
         x_grad = []
         y_grad = []
         self.__recurse_adapt(start, end, delta, hmin, x_grad, y_grad, 
                              self.__eval_backward)
-        x.append(end) # Stitch the end value on.
-        y.append(self.__eval_backward(end)) # Stitch the end value on.
+        x_grad.append(end) # Stitch the end value on.
+        y_grad.append(self.__eval_backward(end)) # Stitch the end value on.
         self.xin_grad = torch.tensor(x_grad, dtype=torch.float64)
         self.yin_grad = torch.tensor(y_grad, dtype=torch.float64)
+        self.backward_fn_interpolate = interpolate.interp1d(self.xin_grad, 
+                                                             self.yin_grad, 
+                                                             kind=self.kind)
+
+    def fit_naive(self, start, end, num_points):
+        print("fitting naive")
 
     def __plot_vals(self, xin, yin, fn):
         minval = xin.numpy()[0]
@@ -121,50 +125,6 @@ class Interpolator(torch.autograd.Function):
         """
         return np.where(np.abs(xout - x0) < np.abs(xout - x1), y0, y1)
 
-    def __linear(self, xout, x0, x1, y0, y1):
-        """
-        Calls the point slope formula to return a y value on the line connecting
-        the points [(x0, y0), (x1, y1)].
-        """
-        m = (y1 - y0) /  (x1 - x0) # Calculate slope.
-        return (xout - x0) * m + y0 # Point slope formula.
-
-    def __get_points(self, xout, xin, yin):
-        """
-        Given a x value 'xout' to predict, this method finds the coordinates of 
-        the two nearest points [(x0, y0), (x1, y1)] we have in our grid of 
-        'self.xin' and 'self.yin' values
-        """
-        # Change this method to accept a list of points. 
-        lenxin = len(xin)
-
-        # Search for the nearest index to 'xout'. This is the larger index
-        # from which we will grid a line between two points (e.g. larger point).
-        i1 = np.searchsorted(xin, xout)
-
-        i1 = 1 if i1 == 0 else i1 # Corner case for start of array.
-        i1 = lenxin-1 if i1 == lenxin else i1 # Corner case for end of array.
-
-        x0 = xin[i1-1]
-        x1 = xin[i1]
-        y0 = yin[i1-1]
-        y1 = yin[i1]
-        return x0, x1, y0, y1
-
-    def __get_single_point(self, xout, backwards=False):
-        """
-        Interprets a single y value for a given x value ('xout').
-        """
-        x0, x1, y0, y1 = self.__get_points(xout, self.xin, self.yin)
-        if backwards:
-            x0, x1, y0, y1 = self.__get_points(xout, self.xin_grad, self.yin_grad)
-        if self.kind == 'nearest':
-            return self.__nearest(xout, x0, x1, y0, y1)
-        elif self.kind == 'linear':
-            return self.__linear(xout, x0, x1, y0, y1)
-        else:
-            raise ValueError('Invalid interpolation kind: %s' % self.kind)
-
     @staticmethod
     def forward(ctx, input, self):
         """
@@ -174,23 +134,14 @@ class Interpolator(torch.autograd.Function):
         objects for use in the backward pass using the ctx.save_for_backward 
         method.
         """
-        #ctx.save_for_backward(input)
-
         inp_clone = input.clone().detach()
-        inp_clone = torch.tensor(inp_clone.map_(inp_clone, 
-                        lambda a,b: self.__get_single_point(a)),
-                        requires_grad=True)
- 
-        # TODO: Can we fix this? Right now I basically have to do backwards 
-        # in the forwards because I cannot access 'self' in the backwards pass.
-        # 'save_for_backward' can only store tensors.
-        grad_clone = input.clone().detach()
-        grad_clone = torch.tensor(grad_clone.map_(grad_clone, 
-                        lambda a,b: self.__get_single_point(a, backwards=True)))
-        
-        ctx.save_for_backward(input, grad_clone)
+        forward = self.forward_fn_interpolate(inp_clone.numpy())
+        forward = torch.tensor(forward)
 
-        return inp_clone
+        ctx.self = self
+        ctx.save_for_backward(inp_clone)
+
+        return forward
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -199,7 +150,7 @@ class Interpolator(torch.autograd.Function):
         loss with respect to the output, and we need to compute the gradient of 
         the loss with respect to the input.
         """
-        # TODO: Is it right to just do 'grad_input' * 'grad_output'. I think
-        # so...check up on yo chain rule.
-        input, grad_input = ctx.saved_tensors
+        input, = ctx.saved_tensors
+        grad_input = ctx.self.backward_fn_interpolate(input.numpy())
+        grad_input = torch.tensor(grad_input)
         return (grad_input*grad_output, None)

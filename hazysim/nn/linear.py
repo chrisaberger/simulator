@@ -2,10 +2,10 @@ import math
 import torch
 from torch.nn.parameter import Parameter
 import torch.nn.functional as F
-from .functions import *
-from .baselayer import BaseLayer
+from .functional import *
+from .base import Base
 
-class Linear(BaseLayer):
+class Linear(Base):
     r"""Applies a linear transformation to the incoming data: :math:`y = Ax + b`
 
     Args:

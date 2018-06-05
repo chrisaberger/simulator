@@ -1,9 +1,9 @@
 import torch.nn.functional as F
 import torch
-from .baselayer import BaseLayer
-from .functions import *
+from .base import Base
+from .functional import *
 
-class _Loss(BaseLayer):
+class _Loss(Base):
     def __init__(self, size_average=True, reduce=True):
         super(_Loss, self).__init__()
         self.size_average = size_average
