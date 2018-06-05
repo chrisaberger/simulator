@@ -31,7 +31,8 @@ class QLinear(torch.nn.Module):
         >>> print(output.size())
     """
 
-    def __init__(self, in_features, out_features, bias=True):
+    def __init__(self, in_features, out_features, bias=True,
+                 n_exponent_bits=None, n_mantissa_bits=None):
         super(QLinear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -41,6 +42,9 @@ class QLinear(torch.nn.Module):
         else:
             self.register_parameter('bias', None)
         self.reset_parameters()
+        
+        self.n_exponent_bits = n_exponent_bits
+        self.n_mantissa_bits = n_mantissa_bits
 
     def reset_parameters(self):
         stdv = 1. / math.sqrt(self.weight.size(1))
@@ -49,7 +53,8 @@ class QLinear(torch.nn.Module):
             self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, input):
-        return FLinear.apply(input, self.weight, self.bias)
+        return FLinear.apply(input, self.weight, self.bias, 
+                             self.n_exponent_bits, self.n_mantissa_bits)
 
     def extra_repr(self):
         return 'in_features={}, out_features={}, bias={}'.format(

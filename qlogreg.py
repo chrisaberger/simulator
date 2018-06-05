@@ -45,7 +45,7 @@ def predict(model, x_val):
 
 def main():
     torch.manual_seed(42)
-    qnn.set_precision(num_bits=8, num_mantissa_bits=5)
+    qnn.QuantizeFP.set_precision(num_bits=8, num_mantissa_bits=5)
     trX, teX, trY, teY = load_mnist(onehot=False)
     trX = torch.from_numpy(trX).float()
     teX = torch.from_numpy(teX).float()

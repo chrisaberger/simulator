@@ -6,8 +6,11 @@ class FLinear(torch.autograd.Function):
     # Note that both forward and backward are @staticmethods
     @staticmethod
     # bias is an optional argument
-    def forward(ctx, input, weight, bias=None):
-        input.quantize_()
+    def forward(ctx, input, weight, n_exponent_bits, n_mantissa_bits, bias=None):
+        input.quantize_(n_exponent_bits=n_exponent_bits, 
+                        n_mantissa_bits=n_mantissa_bits)
+        ctx.n_exponent_bits = n_exponent_bits
+        ctx.n_mantissa_bits = n_mantissa_bits
         ctx.save_for_backward(input, weight, bias)
         output = input.mm(weight.t())
         if bias is not None:
@@ -17,7 +20,8 @@ class FLinear(torch.autograd.Function):
     # This function has only a single output, so it gets only one gradient
     @staticmethod
     def backward(ctx, grad_output):
-        grad_output.quantize_()
+        grad_output.quantize_(n_exponent_bits=ctx.n_exponent_bits, 
+                              n_mantissa_bits=ctx.n_mantissa_bits)
         # This is a pattern that is very convenient - at the top of backward
         # unpack saved_tensors and initialize all gradients w.r.t. inputs to
         # None. Thanks to the fact that additional trailing Nones are
@@ -37,4 +41,4 @@ class FLinear(torch.autograd.Function):
         if bias is not None and ctx.needs_input_grad[2]:
             grad_bias = grad_output.sum(0).squeeze(0)
 
-        return grad_input, grad_weight, grad_bias
+        return grad_input, grad_weight, None, None, grad_bias

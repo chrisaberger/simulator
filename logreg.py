@@ -1,11 +1,8 @@
 import numpy as np
-
 import torch
 from torch.autograd import Variable
 from torch import optim
-
 from data_util import load_mnist
-
 
 def build_model(input_dim, output_dim):
     # We don't need the softmax layer here since CrossEntropyLoss already
@@ -34,7 +31,6 @@ def train(model, loss, optimizer, x_val, y_val):
     optimizer.step()
 
     return output.data.item()
-
 
 def predict(model, x_val):
     x = Variable(x_val, requires_grad=False)

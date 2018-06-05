@@ -6,17 +6,18 @@ import sys
 import logging
 import numpy as np
 
-n_exponent_bits = 5
-n_mantissa_bits = 8
-n_bits = n_exponent_bits + n_mantissa_bits + 1
-
-def set_precision(num_bits, num_mantissa_bits):
-    global n_exponent_bits, n_mantissa_bits, n_bits
-    n_mantissa_bits = num_mantissa_bits
-    n_exponent_bits = num_bits-(n_mantissa_bits+1)
-    n_bits = num_bits
-
 class QuantizeFP:
+    n_exponent_bits = 8
+    n_mantissa_bits = 23
+    n_bits = n_exponent_bits + n_mantissa_bits + 1
+
+    @staticmethod
+    def set_precision(num_bits, num_mantissa_bits):
+        QuantizeFP.n_exponent_bits = num_bits - (num_mantissa_bits+1)
+        QuantizeFP.n_mantissa_bits = num_mantissa_bits
+        QuantizeFP.n_bits = num_bits
+
+class IEEEFloatingPointData:
     def __init__(self, dtype):
         if dtype == np.float32:
             self.ufixed_type = np.uint32
@@ -45,10 +46,10 @@ class QuantizeFP:
                              "(only float and double)")
 
 def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
-    q = QuantizeFP(input.dtype)
+    q = IEEEFloatingPointData(input.dtype)
 
     input = np.ascontiguousarray(input)
-    XInt = input.ctypes.data_as(ctypes.POINTER(ctypes.c_float*2))
+    XInt = input.ctypes.data_as(ctypes.POINTER(q.ctype*len(input)))
 
     new_np_array = np.ctypeslib.as_array(\
         (q.ctype * len(input)).from_address(\
@@ -94,6 +95,7 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     #-1S × (1.0 + 0.M) × 2^E-bias
     reconstructed_val = (sign * mantissa_float * exp_val)
 
+    # TODO: Our processing of subnormals is not right.
     # special numbers: e = 0 , means signifigand is subnormal.
     #       (−1)^signbit× 2^(min_exp) x 0.significandbits
     # e = 1111..., +inifinity when mantissa = 0, NaN when mantissa ne 0.  
@@ -101,9 +103,12 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
                                       exponent_raw != q.special_exponent)
     return np.where(exponent_filter, reconstructed_val, input)
 
-def quantize_(input, 
-              n_exponent_bits=n_exponent_bits, 
-              n_mantissa_bits=n_mantissa_bits):
+def quantize_(input, n_exponent_bits = None, n_mantissa_bits = None):
+    if n_exponent_bits is None:
+        n_exponent_bits = QuantizeFP.n_exponent_bits
+    if n_mantissa_bits is None:
+        n_mantissa_bits = QuantizeFP.n_mantissa_bits
+
     in_shape = input.shape
     d_1 = input.reshape(input.numel())
     new_array = quantize_floating_point_(
