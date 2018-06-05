@@ -1,7 +1,6 @@
-import functions as interp
+import hazysim.nn as sim
 import torch.nn.functional as F
 import torch
-from tensor import quantize 
 import logging
 from datetime import datetime
 import os
@@ -74,16 +73,12 @@ if not os.path.exists("log"):
 
 filename = str(datetime.now().strftime('%Hh%Mm%Ss_%m-%d-%Y'))+".log"
 logging.basicConfig(filename="log/"+filename,level=logging.DEBUG)
-#test_quantize()
 
-fn = interp.QLinear 
-print(fn.backward)
+print("HERE")
+fn = sim.Linear(10, 10)
+fn2 = sim.Linear(10, 5)
 
-x = torch.randn(100,100)
-print(x)
-x.requires_grad = False
-w = torch.randn(100,100)
-w.requires_grad = True
-out = fn.apply(x, w).sum()
-out.backward()
+x = torch.randn(10,10)
+out = fn2(fn(x))
+out.sum().backward()
 #print(w.grad)

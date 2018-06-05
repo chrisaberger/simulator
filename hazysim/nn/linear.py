@@ -1,6 +1,7 @@
 import math
 import torch
 from torch.nn.parameter import Parameter
+import torch.nn.functional as F
 from .functions import *
 
 class Linear(torch.nn.Module):
@@ -43,8 +44,18 @@ class Linear(torch.nn.Module):
             self.register_parameter('bias', None)
         self.reset_parameters()
         
-        self.n_exponent_bits = n_exponent_bits
-        self.n_mantissa_bits = n_mantissa_bits
+        self.n_exponent_bits = 1
+        self.n_mantissa_bits = 1
+
+        def hookFunc(module, gradInput, gradOutput):
+            newGradIn = ()
+            for gi in gradInput:
+                if gi is not None:
+                    gi.quantize_(self.n_exponent_bits, self.n_mantissa_bits)
+                newGradIn += (gi,)
+            return newGradIn
+
+        self.register_backward_hook(hookFunc) 
 
     def reset_parameters(self):
         stdv = 1. / math.sqrt(self.weight.size(1))
@@ -53,8 +64,11 @@ class Linear(torch.nn.Module):
             self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, input):
-        return FLinear.apply(input, self.weight, self.bias, 
-                             self.n_exponent_bits, self.n_mantissa_bits)
+        input.quantize_(self.n_exponent_bits, self.n_mantissa_bits)
+        self.weight.quantize_(self.n_exponent_bits, self.n_mantissa_bits)
+        if self.bias is not None:
+            self.bias.quantize_(self.n_exponent_bits, self.n_mantissa_bits)
+        return F.linear(input, self.weight, self.bias)
 
     def extra_repr(self):
         return 'in_features={}, out_features={}, bias={}'.format(
