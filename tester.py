@@ -52,13 +52,14 @@ def test_quantize():
     b = a.clone()
 
     t0 = time.time()
-    a.quantize_fp_(n_exponent_bits=4, n_mantissa_bits=5)
+    a.quantize_(n_exponent_bits=4, n_mantissa_bits=5)
     #a = a*a
     print(len(a))
     t1 = time.time()
     print("Quantize FP: " + str(t1-t0))
     print(a)
     
+    """
     t0 = time.time()
     b.quantize_(1, 11)
     #b = b*b
@@ -66,10 +67,23 @@ def test_quantize():
     t1 = time.time()
     print("Quantize Old: " + str(t1-t0))
     print(b)
+    """
 
 if not os.path.exists("log"):
     os.makedirs("log")
 
 filename = str(datetime.now().strftime('%Hh%Mm%Ss_%m-%d-%Y'))+".log"
 logging.basicConfig(filename="log/"+filename,level=logging.DEBUG)
-test_quantize()
+#test_quantize()
+
+fn = interp.QLinear 
+print(fn.backward)
+
+x = torch.randn(100,100)
+print(x)
+x.requires_grad = False
+w = torch.randn(100,100)
+w.requires_grad = True
+out = fn.apply(x, w).sum()
+out.backward()
+#print(w.grad)

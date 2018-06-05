@@ -5,14 +5,14 @@ from torch.autograd import Variable
 from torch import optim
 
 from data_util import load_mnist
-
+import nn as qnn
 
 def build_model(input_dim, output_dim):
     # We don't need the softmax layer here since CrossEntropyLoss already
     # uses it internally.
     model = torch.nn.Sequential()
     model.add_module("linear",
-                     torch.nn.Linear(input_dim, output_dim, bias=False))
+                     qnn.QLinear(input_dim, output_dim, bias=False))
     return model
 
 
@@ -20,6 +20,7 @@ def train(model, loss, optimizer, x_val, y_val):
     x = Variable(x_val, requires_grad=False)
     y = Variable(y_val, requires_grad=False)
 
+    #print(x)
     # Reset gradient
     optimizer.zero_grad()
 
@@ -44,6 +45,7 @@ def predict(model, x_val):
 
 def main():
     torch.manual_seed(42)
+    qnn.set_precision(num_bits=8, num_mantissa_bits=5)
     trX, teX, trY, teY = load_mnist(onehot=False)
     trX = torch.from_numpy(trX).float()
     teX = torch.from_numpy(teX).float()
