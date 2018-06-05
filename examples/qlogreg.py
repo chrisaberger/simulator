@@ -12,7 +12,7 @@ def build_model(input_dim, output_dim):
     model = torch.nn.Sequential()
     lin_layer = sim.Linear(input_dim, output_dim, bias=False)
     # Set the precision for only the linear layer. If not set will use global.
-    lin_layer.register_precision(num_bits=16, num_mantissa_bits=10)
+    # lin_layer.register_precision(num_bits=16, num_mantissa_bits=10)
     model.add_module("linear", lin_layer)
     return model
 
@@ -47,7 +47,7 @@ def main():
     torch.manual_seed(42)
     # Sets the global precision level (if you set per layer this is overridden
     # for said layer).
-    sim.QuantizeFP.set_precision(num_bits=42, num_mantissa_bits=32)
+    sim.QuantizeFP.set_precision(num_bits=16, num_mantissa_bits=10)
     trX, teX, trY, teY = load_mnist(onehot=False)
     trX = torch.from_numpy(trX).float()
     teX = torch.from_numpy(teX).float()
@@ -58,7 +58,7 @@ def main():
     model = build_model(n_features, n_classes)
     loss = sim.CrossEntropyLoss(size_average=True)
     # Set the precision for only the loss function.
-    loss.register_precision(num_bits=25, num_mantissa_bits=12)
+    # loss.register_precision(num_bits=25, num_mantissa_bits=12)
     optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
     batch_size = 100
 

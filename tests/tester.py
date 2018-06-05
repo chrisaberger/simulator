@@ -78,6 +78,21 @@ print("HERE")
 fn = sim.Linear(10, 10)
 fn2 = sim.Linear(10, 5)
 
+def hookFunc(module, gradInput, gradOutput):
+    print("YOU KNOW")
+fn2.register_backward_hook(hookFunc) 
+
+fn.register_precision(10, 5)
+fn.register_precision(11, 5)
+fn.register_precision(20, 1)
+
+fn2.register_precision(23, 2)
+
+
+#fn2.register_precision(10, 5)
+print(fn._backward_hooks)
+print(fn2._backward_hooks)
+
 x = torch.randn(10,10)
 out = fn2(fn(x))
 out.sum().backward()
