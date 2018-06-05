@@ -5,14 +5,13 @@ from torch.autograd import Variable
 from torch import optim
 
 from data_util import load_mnist
-import nn as qnn
-
+import hazysim.nn as sim
 def build_model(input_dim, output_dim):
     # We don't need the softmax layer here since CrossEntropyLoss already
     # uses it internally.
     model = torch.nn.Sequential()
     model.add_module("linear",
-                     qnn.QLinear(input_dim, output_dim, bias=False))
+                     sim.Linear(input_dim, output_dim, bias=False))
     return model
 
 
@@ -42,10 +41,9 @@ def predict(model, x_val):
     output = model.forward(x)
     return output.data.numpy().argmax(axis=1)
 
-
 def main():
     torch.manual_seed(42)
-    qnn.QuantizeFP.set_precision(num_bits=32, num_mantissa_bits=23)
+    sim.QuantizeFP.set_precision(num_bits=32, num_mantissa_bits=23)
     trX, teX, trY, teY = load_mnist(onehot=False)
     trX = torch.from_numpy(trX).float()
     teX = torch.from_numpy(teX).float()

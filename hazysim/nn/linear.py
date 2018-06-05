@@ -3,7 +3,7 @@ import torch
 from torch.nn.parameter import Parameter
 from .functions import *
 
-class QLinear(torch.nn.Module):
+class Linear(torch.nn.Module):
     r"""Applies a linear transformation to the incoming data: :math:`y = Ax + b`
 
     Args:
@@ -33,7 +33,7 @@ class QLinear(torch.nn.Module):
 
     def __init__(self, in_features, out_features, bias=True,
                  n_exponent_bits=None, n_mantissa_bits=None):
-        super(QLinear, self).__init__()
+        super(Linear, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.weight = Parameter(torch.Tensor(out_features, in_features))
