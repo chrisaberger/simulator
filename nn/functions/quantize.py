@@ -98,7 +98,6 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     #-1S × (1.0 + 0.M) × 2^E-bias
     reconstructed_val = (sign * mantissa_float * exp_val)
 
-    # TODO: Our processing of subnormals is not right.
     # special numbers: e = 0 , means signifigand is subnormal.
     #       (−1)^signbit× 2^(min_exp) x 0.significandbits
     # e = 1111..., +inifinity when mantissa = 0, NaN when mantissa ne 0.  
