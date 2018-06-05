@@ -110,8 +110,8 @@ def quantize_(input, n_exponent_bits = None, n_mantissa_bits = None):
     if n_mantissa_bits is None:
         n_mantissa_bits = QuantizeFP.n_mantissa_bits
 
-    print("num exponent: " + str(n_exponent_bits) + 
-          " num mantissa: " + str(n_mantissa_bits))
+    #print("num exponent: " + str(n_exponent_bits) + 
+    #      " num mantissa: " + str(n_mantissa_bits))
 
     in_shape = input.shape
     d_1 = input.reshape(input.numel()).detach()
