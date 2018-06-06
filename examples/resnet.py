@@ -111,10 +111,4 @@ for group in optimizer.param_groups:
             param_state = optimizer.state[p]
             optimizer_bytes += get_num_bytes(torch.zeros_like(p.data))
 
-
-
 print("Optimizer Bytes:\t" + str(optimizer_bytes) + " bytes")
-
-
-
-
