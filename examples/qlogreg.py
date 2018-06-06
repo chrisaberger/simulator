@@ -31,6 +31,7 @@ def train(model, loss, optimizer, x_val, y_val):
     output = loss.forward(fx, y)
 
     # Backward
+    traverse(output)
     output.backward()
 
     # Update parameters
