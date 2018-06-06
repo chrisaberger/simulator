@@ -50,7 +50,9 @@ for name, param in model.named_parameters():
         if verbose_weights:
             print(name, param_bytes)
 
-print("Total Weights Bytes:\t" + str(weights_bytes) + " bytes")
+print("Weights Bytes:\t\t\t\t" + str(weights_bytes) + " bytes")
+# We can accumulate gradients at the weights.
+print("Gradient Bytes:\t\t\t\t" + str(weights_bytes) + " bytes")
 
 """
 Part 2: Calculate how much memory is used to store the gradients. This is summed
@@ -101,8 +103,8 @@ x = torch.randn(1, 3, 224, 224)
 out = model(x)
 out.sum().backward()
 
-print("Gradient Bytes:\t\t" + str(grad_storage) + " bytes")
-print("Buffer Bytes:\t\t" + str(buffer_bytes) + " bytes")
+print("Saved Forward Bytes (Worst-Case):\t" + str(grad_storage) + " bytes")
+print("Buffer Bytes:\t\t\t\t" + str(buffer_bytes) + " bytes")
 
 """
 Part 3: Calculate extra memory that might be used in the optimizer.
@@ -120,4 +122,4 @@ for group in optimizer.param_groups:
             param_state = optimizer.state[p]
             optimizer_bytes += get_num_bytes(torch.zeros_like(p.data))
 
-print("Optimizer Bytes:\t" + str(optimizer_bytes) + " bytes")
+print("Momentum Bytes:\t\t\t\t" + str(optimizer_bytes) + " bytes")
