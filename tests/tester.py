@@ -21,7 +21,8 @@ def test_interpolate():
     that at its midpoint m, |f(m) - L(m)| <= delta where L(x) is the line that 
     connects (x(i),y(i)) and (x(i+1),y(i+1)).
     """
-    isin.adapt(start=-8, end=10, delta=0.01, hmin=0.01)
+    isin.adapt(start = -8, end = 10, delta = 0.01, hmin = 0.01)
+    isin.chunk(min = -8, max = 10, num_points = 100)
     print(isin)
     sin_result = isin(a_interp)
     sin_result.sum().backward()

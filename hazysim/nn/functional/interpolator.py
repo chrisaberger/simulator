@@ -58,6 +58,29 @@ class FInterpolator(torch.autograd.Function):
                 self.__recurse_adapt(xL, mid, delta, hmin, x, y, fn)
                 self.__recurse_adapt(mid, xR, delta, hmin, x, y, fn)
 
+    def naive_chunking(self, min, max, num_points):
+        assert(max > min)
+        assert(num_points > 0)
+        diff = max - min
+        chunk_size = diff/num_points
+
+        self.xin = torch.arange(float(min), 
+                                 float(max), 
+                                 step=chunk_size)
+        self.yin = self.__eval_forward(self.xin)
+        self.forward_fn_interpolate = interpolate.interp1d(self.xin, 
+                                                           self.yin, 
+                                                           kind=self.kind)
+
+
+        self.xin_grad = self.xin
+        self.yin_grad = self.__eval_backward(self.xin_grad)
+        self.backward_fn_interpolate = interpolate.interp1d(self.xin_grad, 
+                                                             self.yin_grad, 
+                                                             kind=self.kind)
+        print("done")
+
+
     def adapt_linear(self, start, end, delta, hmin):
         """
         Adaptive Piecewise Linear Interpolation from Section 3.1.4. 

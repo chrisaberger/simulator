@@ -10,8 +10,10 @@ class Interpolator(Base):
         super(Interpolator, self).__init__()
         self.fn = FInterpolator(fn, kind)
 
+    def chunk(self, min, max, num_points):
+        self.fn.naive_chunking(min, max, num_points)
+
     def adapt(self, start, end, delta, hmin):
-        print(self.fn)
         self.fn.adapt_linear(start, end, delta, hmin)
 
     def forward(self, input):
