@@ -4,6 +4,7 @@ import logging
 
 # The model we will analyze!
 model = torchvision.models.resnet50()
+override_bytes_per_elem = 2 # set to None if you don't want to override.
 
 """
 Part 1: Compute the storage cost of the model (a.k.a. weights a.k.a. 
@@ -15,6 +16,9 @@ flag is set the name of the weight (or parameter) and the number of bytes
 it consumes is printed for each layer.
 """
 def get_num_bytes_from_type(dtype):
+    global override_bytes_per_elem
+    if override_bytes_per_elem is not None:
+        return override_bytes_per_elem
     """
     Helper function to return the number of bytes given a torch type.
     TODO: fill out for all types.
@@ -68,7 +72,9 @@ def hookFunc(module, gradInput, gradOutput):
         if v is not None:
             grad_storage += get_num_bytes(v)
 
+buffer_bytes = 0
 def find_leaves(layer, name=None):
+    global buffer_bytes
     """
     This function traverses down to the base modules in the module (nested).
     At the base or leaf modules we register a backwards hook that will account
@@ -82,6 +88,8 @@ def find_leaves(layer, name=None):
         is_leaf = False
         find_leaves(child, child_name)
     if is_leaf:
+        for _, buf in layer._buffers.items():
+            buffer_bytes += get_num_bytes(buf)
         layer.register_backward_hook(hookFunc)
 
 find_leaves(model)
@@ -94,6 +102,7 @@ out = model(x)
 out.sum().backward()
 
 print("Gradient Bytes:\t\t" + str(grad_storage) + " bytes")
+print("Buffer Bytes:\t\t" + str(buffer_bytes) + " bytes")
 
 """
 Part 3: Calculate extra memory that might be used in the optimizer.
