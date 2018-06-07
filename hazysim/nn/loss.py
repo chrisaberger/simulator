@@ -121,11 +121,8 @@ class ICrossEntropyLoss(_WeightedLoss):
         assert(len(target.size()) == 1)
 
         """ 
-        Specialized 2d Cross Entropy loss that only works on 
-        dimension 1. TODO: Replace torch.log and torch.exp with
-        interpolated versions of each function.
+        Interpolated 2d Cross Entropy loss that only works on dimension 1.
         """
-        dimension = 1
         dimensions = input.size()
         softmax = input.clone()
 
@@ -133,9 +130,10 @@ class ICrossEntropyLoss(_WeightedLoss):
             exp = self.iexp(input[i, :])
             softmax[i, :] = (exp/exp.sum())
 
+        # For debugging
         assert(torch.isnan(softmax).sum() == 0)
         logsm = -self.ilog(softmax)
- 
+        # For debugging
         assert(torch.isnan(logsm).sum() == 0)
 
         loss = 0
