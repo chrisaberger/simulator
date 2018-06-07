@@ -106,23 +106,25 @@ class ICrossEntropyLoss(_WeightedLoss):
         
         self.iexp = Interpolator(torch.exp)
         self.iexp.chunk(min = -100, max = 70, num_points = 100)
-        #self.iexp = torch.exp
+        # Uncomment the line below to get "standard" behaviour.
+        # self.iexp = torch.exp # DEBUG
 
         self.ilog = Interpolator(torch.log, kind="linear")
         self.ilog.chunk(min = 1e-30, max = 0.9, num_points = 1e6)
-        #self.ilog = torch.log
+        # Uncomment the line below to get "standard" behaviour.
+        #self.ilog = torch.log # DEBUG
 
         self.ignore_index = ignore_index
         self.register_precision()
 
     def forward(self, input, target):
+        """ 
+        Interpolated 2d Cross Entropy loss that only works on dimension 1.
+        """
         torch.nn.modules.loss._assert_no_grad(target)
         assert(len(input.size()) == 2)
         assert(len(target.size()) == 1)
 
-        """ 
-        Interpolated 2d Cross Entropy loss that only works on dimension 1.
-        """
         dimensions = input.size()
         softmax = input.clone()
 
