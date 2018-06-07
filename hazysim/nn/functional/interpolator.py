@@ -20,14 +20,14 @@ class FInterpolator(torch.autograd.Function):
         self.backward_fn_interpolate = None   
 
     def __eval_forward(self, inp):
-        result = self.fn(torch.tensor(inp, dtype=torch.float64))
+        result = self.fn(torch.tensor(inp, dtype=torch.float32))
         # Just return the python value if it is a scalar.
         if result.size() == torch.Size([]):
             result = result.numpy().item(0)
         return result
 
     def __eval_backward(self, inp):
-        dummy_in = torch.tensor(inp, dtype=torch.float64, requires_grad=True)
+        dummy_in = torch.tensor(inp, dtype=torch.float32, requires_grad=True)
         dummy_out = self.fn(dummy_in)
         # Backwards must be called on a scalar. So if our input/output is not
         # a scalar sum the tensor before calling backward (will force grads of
@@ -64,22 +64,26 @@ class FInterpolator(torch.autograd.Function):
         diff = max - min
         chunk_size = diff/num_points
 
+        fill_value = self.fn(torch.tensor([float(min), float(max)]))
+        fill_value = (fill_value[0],fill_value[1])
         self.xin = torch.arange(float(min), 
                                  float(max), 
                                  step=chunk_size)
         self.yin = self.__eval_forward(self.xin)
         self.forward_fn_interpolate = interpolate.interp1d(self.xin, 
                                                            self.yin, 
-                                                           kind=self.kind)
+                                                           kind=self.kind,
+                                                           fill_value=fill_value,
+                                                           bounds_error=False)
 
 
         self.xin_grad = self.xin
         self.yin_grad = self.__eval_backward(self.xin_grad)
         self.backward_fn_interpolate = interpolate.interp1d(self.xin_grad, 
                                                              self.yin_grad, 
-                                                             kind=self.kind)
-        print("done")
-
+                                                             kind=self.kind,
+                                                             fill_value=fill_value,
+                                                             bounds_error=False)
 
     def adapt_linear(self, start, end, delta, hmin):
         """
@@ -94,8 +98,8 @@ class FInterpolator(torch.autograd.Function):
                              self.__eval_forward)
         x.append(end) # Stitch the end value on.
         y.append(self.__eval_forward(end)) # Stitch the end value on.
-        self.xin = torch.tensor(x, dtype=torch.float64)
-        self.yin = torch.tensor(y, dtype=torch.float64)
+        self.xin = torch.tensor(x, dtype=torch.float32)
+        self.yin = torch.tensor(y, dtype=torch.float32)
         self.forward_fn_interpolate = interpolate.interp1d(self.xin, 
                                                            self.yin, 
                                                            kind=self.kind)
@@ -107,8 +111,8 @@ class FInterpolator(torch.autograd.Function):
                              self.__eval_backward)
         x_grad.append(end) # Stitch the end value on.
         y_grad.append(self.__eval_backward(end)) # Stitch the end value on.
-        self.xin_grad = torch.tensor(x_grad, dtype=torch.float64)
-        self.yin_grad = torch.tensor(y_grad, dtype=torch.float64)
+        self.xin_grad = torch.tensor(x_grad, dtype=torch.float32)
+        self.yin_grad = torch.tensor(y_grad, dtype=torch.float32)
         self.backward_fn_interpolate = interpolate.interp1d(self.xin_grad, 
                                                              self.yin_grad, 
                                                              kind=self.kind)
@@ -159,7 +163,7 @@ class FInterpolator(torch.autograd.Function):
         """
         inp_clone = input.clone().detach()
         forward = self.forward_fn_interpolate(inp_clone.numpy())
-        forward = torch.tensor(forward)
+        forward = torch.tensor(forward, dtype=torch.float32)
 
         ctx.self = self
         ctx.save_for_backward(inp_clone)
@@ -175,5 +179,5 @@ class FInterpolator(torch.autograd.Function):
         """
         input, = ctx.saved_tensors
         grad_input = ctx.self.backward_fn_interpolate(input.numpy())
-        grad_input = torch.tensor(grad_input)
+        grad_input = torch.tensor(grad_input, dtype=torch.float32)
         return (grad_input*grad_output, None)

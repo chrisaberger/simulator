@@ -2,6 +2,7 @@ import torch.nn.functional as F
 import torch
 from .base import Base
 from .functional import *
+from .interpolator import Interpolator
 
 class _Loss(Base):
     def __init__(self, size_average=True, reduce=True):
@@ -98,3 +99,48 @@ class CrossEntropyLoss(_WeightedLoss):
 
         return F.cross_entropy(input, target, self.weight, self.size_average,
                                self.ignore_index, self.reduce)
+
+class ICrossEntropyLoss(_WeightedLoss):
+    def __init__(self, weight=None, size_average=True, ignore_index=-100, reduce=True):
+        super(ICrossEntropyLoss, self).__init__(weight, size_average, reduce)
+        
+        self.iexp = Interpolator(torch.exp)
+        self.iexp.chunk(min = -100, max = 70, num_points = 100)
+        #self.iexp = torch.exp
+
+        self.ilog = Interpolator(torch.log, kind="linear")
+        self.ilog.chunk(min = 1e-30, max = 0.9, num_points = 1e6)
+        #self.ilog = torch.log
+
+        self.ignore_index = ignore_index
+        self.register_precision()
+
+    def forward(self, input, target):
+        torch.nn.modules.loss._assert_no_grad(target)
+        assert(len(input.size()) == 2)
+        assert(len(target.size()) == 1)
+
+        """ 
+        Specialized 2d Cross Entropy loss that only works on 
+        dimension 1. TODO: Replace torch.log and torch.exp with
+        interpolated versions of each function.
+        """
+        dimension = 1
+        dimensions = input.size()
+        softmax = input.clone()
+
+        for i in range(dimensions[0]):
+            exp = self.iexp(input[i, :])
+            softmax[i, :] = (exp/exp.sum())
+
+        assert(torch.isnan(softmax).sum() == 0)
+        logsm = -self.ilog(softmax)
+ 
+        assert(torch.isnan(logsm).sum() == 0)
+
+        loss = 0
+        for i in range(dimensions[0]):
+            loss += logsm[i, target[i]]
+        loss = loss / dimensions[0]
+
+        return loss 

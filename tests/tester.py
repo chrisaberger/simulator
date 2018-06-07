@@ -7,6 +7,30 @@ import time
 
 import hazysim.nn as sim
 
+
+def test_exp():
+
+    a_interp = torch.tensor([-90.0,-10,10,75], requires_grad=True)
+    a_actual = torch.tensor([-90.0,-10,10,75], requires_grad=True)
+
+    iexp = sim.Interpolator(torch.exp)
+    iexp.chunk(min = -100, max = 100, num_points = 100)
+
+    exp_result = iexp(a_interp)
+    exp_result.sum().backward()
+    print(exp_result)
+    print(a_interp.grad)
+
+    print("Forward Acutal")
+    actual = torch.exp(a_actual)
+    print(actual)
+    print("Backward Actual")
+    actual.sum().backward()
+    print(a_actual.grad)
+
+test_exp()
+exit()
+
 def test_interpolate():
     a_interp = torch.tensor([1.0,0.0,-1.0,2.0], requires_grad=True)
     a_actual = torch.tensor([1.0,0.0,-1.0,2.0], requires_grad=True)

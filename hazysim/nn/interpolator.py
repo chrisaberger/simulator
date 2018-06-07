@@ -18,4 +18,4 @@ class Interpolator(Base):
 
     def forward(self, input):
         result = self.fn.apply(input, self.fn)
-        return result
+        return result.float()
