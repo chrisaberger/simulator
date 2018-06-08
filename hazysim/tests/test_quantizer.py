@@ -17,8 +17,13 @@ def test_quantize_double_simple():
     assert(acutal_sum == quantize_sum)
 
 def test_quantize_float():
-    a = torch.randn(5000,5000).float()    
-    acutal_sum = a.sum()
-    a.quantize_(n_exponent_bits=5, n_mantissa_bits=4)
-    quantize_sum = a.sum()
-    assert(acutal_sum == quantize_sum)
+    a = torch.tensor([0.123456, -10.698], dtype=torch.float32)   
+    a.quantize_(n_exponent_bits=6, n_mantissa_bits=5)
+    assert(a[0] == 0.123046875)
+    assert(a[1] == -10.5)
+
+def test_quantize_double():
+    a = torch.tensor([0.123456, -10.698], dtype=torch.float64)   
+    a.quantize_(n_exponent_bits=6, n_mantissa_bits=5)
+    assert(a[0] == 0.123046875)
+    assert(a[1] == -10.5)
