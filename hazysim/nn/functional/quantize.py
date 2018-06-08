@@ -42,8 +42,53 @@ class IEEEFloatingPointData:
             self.n_bits = 64
             self.special_exponent = int("11111111111",2)
         else:
-            raise ValueError("Type not accepted for quantization"
-                             "(only float and double)")
+            raise ValueError("Type "+str(dtype)+" not accepted for quantization"
+                             "(only float and double).")
+
+def break_down_fp_(input):
+    in_shape = input.shape
+    d_1 = input.reshape(input.numel())
+    d_1 = d_1.detach().numpy()
+
+    q = IEEEFloatingPointData(d_1.dtype)
+
+    d_1 = np.ascontiguousarray(d_1)
+    XInt = d_1.ctypes.data_as(ctypes.POINTER(q.ctype*len(d_1)))
+
+    new_np_array = np.ctypeslib.as_array(\
+        (q.ctype * len(d_1)).from_address(\
+            ctypes.addressof(XInt.contents)))
+
+    ################## Process Exponent. ##################
+    bias = pow(2, q.n_exponent-1) - 1
+    exponent_raw = np.right_shift(
+                        np.left_shift(new_np_array, 1), (q.n_mantissa+1) )
+    subnormal_nums = exponent_raw == 0
+    exponent_raw[exponent_raw == 0] = 1 # subnormal numbers are 2^(-bias-1)
+    exponent = exponent_raw.astype(np.int) - bias
+
+    ################## Process Mantissa. ##################
+    mantissa_and_array = np.full(shape=d_1.shape, 
+                        fill_value=int(q.mantissa_and_value, 16), 
+                        dtype=q.ufixed_type)
+    mantissa_or_array = np.full(shape=d_1.shape, 
+                       fill_value=int(q.mantissa_or_value, 16), 
+                       dtype=q.ufixed_type)
+    # Do not add 1.<mantissa> to subnormal numbers (ie take 'mantissa_or_array')
+    np.where(subnormal_nums, mantissa_and_array, mantissa_or_array)
+    mantissa = np.bitwise_or(np.bitwise_and(new_np_array, mantissa_and_array), 
+                             mantissa_or_array)
+    mantissa_float = mantissa/2**(q.n_mantissa)
+
+    ################## Process Sign. ##################
+    sign = np.right_shift(new_np_array, (q.n_bits-1) )
+    sign_val = np.full(shape=d_1.shape, fill_value=-1, dtype=q.fp_type)
+    sign_val.fill(-1)
+    sign = np.power(sign_val, sign)
+
+    return (torch.tensor(sign).reshape(in_shape), 
+            torch.tensor(exponent).reshape(in_shape), 
+            torch.tensor(mantissa_float).reshape(in_shape))
 
 def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     q = IEEEFloatingPointData(input.dtype)
@@ -60,6 +105,7 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     exponent_raw = np.right_shift(
                         np.left_shift(new_np_array, 1), (q.n_mantissa+1) )
     subnormal_nums = exponent_raw == 0
+    exponent_raw[exponent_raw == 0] = 1 # subnormal numbers are 2^(-bias-1)
     exponent = exponent_raw.astype(np.int) - bias
     # Clamp the exponent in the allowed range.
     quantized_exponent_max = pow(2, n_exponent_bits-1) - 1
@@ -125,3 +171,5 @@ def quantize_(input, n_exponent_bits = None, n_mantissa_bits = None):
 
 # Monkey patch torch.Tensor
 torch.Tensor.quantize_ = quantize_
+torch.Tensor.break_down_fp_ = break_down_fp_
+

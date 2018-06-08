@@ -2,7 +2,7 @@ import torch.nn.functional as F
 import torch
 from .base import Base
 from .functional import *
-from .interpolator import Interpolator
+from .interpolator import *
 
 class _Loss(Base):
     def __init__(self, size_average=True, reduce=True):
@@ -109,8 +109,10 @@ class ICrossEntropyLoss(_WeightedLoss):
         # Uncomment the line below to get "standard" behaviour.
         # self.iexp = torch.exp # DEBUG
 
-        self.ilog = Interpolator(torch.log, kind="linear")
-        self.ilog.chunk(min = 1e-30, max = 0.9, num_points = 1e6)
+        self.ilog = LogInterpolator()
+        #self.ilog.adapt(start = 1e-20, end = 0.9, delta = 1e-5, hmin= 1e-6)
+        #print(len(self.ilog.fn.xin))
+        #self.ilog.chunk(min = 1e-30, max = 0.9, num_points = 1e6)
         # Uncomment the line below to get "standard" behaviour.
         #self.ilog = torch.log # DEBUG
 

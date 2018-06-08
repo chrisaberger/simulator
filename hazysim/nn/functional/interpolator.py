@@ -91,6 +91,9 @@ class FInterpolator(torch.autograd.Function):
         http://www.cs.cornell.edu/courses/cs4210/2014fa/CVLBook/CVL3.PDF
         """
 
+        fill_value = self.fn(torch.tensor([float(start), float(end)]))
+        fill_value = (fill_value[0],fill_value[1])
+
         # Forwards
         x = []
         y = []
@@ -102,7 +105,9 @@ class FInterpolator(torch.autograd.Function):
         self.yin = torch.tensor(y, dtype=torch.float32)
         self.forward_fn_interpolate = interpolate.interp1d(self.xin, 
                                                            self.yin, 
-                                                           kind=self.kind)
+                                                           kind=self.kind,
+                                                           bounds_error=False,
+                                                           fill_value=fill_value)
 
         # Backwards
         x_grad = []
@@ -114,8 +119,10 @@ class FInterpolator(torch.autograd.Function):
         self.xin_grad = torch.tensor(x_grad, dtype=torch.float32)
         self.yin_grad = torch.tensor(y_grad, dtype=torch.float32)
         self.backward_fn_interpolate = interpolate.interp1d(self.xin_grad, 
-                                                             self.yin_grad, 
-                                                             kind=self.kind)
+                                                            self.yin_grad, 
+                                                            kind=self.kind,
+                                                            bounds_error=False,
+                                                            fill_value=fill_value)
 
     def fit_naive(self, start, end, num_points):
         print("fitting naive")
