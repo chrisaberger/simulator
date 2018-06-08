@@ -15,7 +15,7 @@ class FLog(torch.autograd.Function):
         
         # For Debug purposes if you want to remove the interpolator.
         # log2_mantissa = torch.log2(mantissa)
-        log2 = log2_mantissa + exponent.double()
+        log2 = log2_mantissa + exponent
         log2_e = 1.4426950408889634
         return log2/log2_e
 

@@ -46,6 +46,7 @@ class IEEEFloatingPointData:
                              "(only float and double).")
 
 def break_down_fp_(input):
+    in_dtype = input.dtype
     in_shape = input.shape
     d_1 = input.reshape(input.numel())
     d_1 = d_1.detach().numpy()
@@ -86,9 +87,9 @@ def break_down_fp_(input):
     sign_val.fill(-1)
     sign = np.power(sign_val, sign)
 
-    return (torch.tensor(sign).reshape(in_shape), 
-            torch.tensor(exponent).reshape(in_shape), 
-            torch.tensor(mantissa_float).reshape(in_shape))
+    return (torch.tensor(sign, dtype=in_dtype).reshape(in_shape), 
+            torch.tensor(exponent, dtype=in_dtype).reshape(in_shape), 
+            torch.tensor(mantissa_float, dtype=in_dtype).reshape(in_shape))
 
 def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     q = IEEEFloatingPointData(input.dtype)

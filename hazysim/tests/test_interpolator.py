@@ -61,9 +61,30 @@ def test_exp():
     assert(torch.abs(actual - exp_result).sum().item() == 0.0)
     assert(torch.abs(a_actual.grad - a_interp.grad).sum().item() == 0.0)
 
+def test_log():
+    a_interp = torch.tensor([0.05,0.5,1.0,5.0],requires_grad=True)
+    a_actual = torch.tensor(a_interp.data, requires_grad =True)
+
+    log_fn = sim.nn.LogInterpolator()
+
+    print("Forward")
+    log_interp = log_fn.forward(a_interp)
+    log_interp.sum().backward()
+    print(log_interp)
+    print(a_interp.grad)
+
+    log_actual = torch.log(a_actual)
+    log_actual.sum().backward()
+    print(log_actual)
+    print(a_actual.grad)
+
+    assert(torch.abs(log_actual - log_interp).sum().item() <= 5e-5)
+    assert(torch.abs(a_actual.grad - a_interp.grad).sum().item() == 0.0)
+
 def main():
     test_sin()
     test_exp()
+    test_log()
 
 if __name__ == "__main__":
     main()
