@@ -1,7 +1,6 @@
 import torch
 import torchvision
 import logging
-import traverse
 # The model we will analyze!
 model = torchvision.models.resnet50()
 override_bytes_per_elem = 2 # set to None if you don't want to override.
@@ -101,8 +100,6 @@ find_leaves(model)
 # strides or batch sizes.
 x = torch.randn(1, 3, 224, 224)
 out = model(x)
-traverse.traverse(out.sum(), dict(model.named_parameters()) )
-
 out.sum().backward()
 
 print("Saved Forward Bytes (Worst-Case):\t" + str(grad_storage) + " bytes")

@@ -13,10 +13,6 @@ class Base(torch.nn.Module):
         self.n_bits = None
         self.quantize_fixed = Quantizer.quantize_fixed
 
-        #self.scale_factor = None
-        #self.n_bits = 16
-        #self.scale_factor = 1.0
-
     def register_fixed_precision(self, scale_factor = 1.0, num_bits=None):
         if scale_factor is not None and num_bits is not None:
             self.scale_factor = scale_factor

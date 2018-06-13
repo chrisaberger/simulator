@@ -49,7 +49,6 @@ def traverse(var, params, bytes_per_elem=4, log="traversal"):
         if var not in seen:
             # Check to see if this is an input tensor?
             if torch.is_tensor(var):
-                print("HERE")
                 logger.info(str(type(var).__name__))
                 logger.warn("Got a tensor but am not accounting for this size.")
             # Check to see if it is part of the model?

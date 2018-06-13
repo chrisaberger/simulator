@@ -9,7 +9,6 @@ import numpy as np
 class Quantizer:
     n_exponent_bits = 8
     n_mantissa_bits = 23
-    #n_bits = n_exponent_bits + n_mantissa_bits + 1
 
     n_bits = 32
     scale_factor = 1.0
@@ -33,8 +32,6 @@ def quantize_fixed_(input, scale_factor = None, bits = None, biased=False):
         bits = Quantizer.n_bits
     if scale_factor == None:
         scale_factor = Quantizer.scale_factor
-    #print("quantizing fixed: " + str(scale_factor) + " " + str(bits))
-    #print(input)
 
     assert bits >= 1, bits
     bound = math.pow(2.0, bits-1)
@@ -140,7 +137,7 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
             ctypes.addressof(XInt.contents)))
 
     ################## Process Exponent. ##################
-    bias = pow(2, q.n_exponent-1) - 1 
+    bias = pow(2, q.n_exponent-1) - 1
     exponent_raw = np.right_shift(
                         np.left_shift(new_np_array, 1), (q.n_mantissa+1) )
     subnormal_nums = exponent_raw == 0
@@ -195,14 +192,10 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     return np.where(exponent_filter, reconstructed_val, input)
 
 def quantize_float_(input, n_exponent_bits = None, n_mantissa_bits = None):
-    #print("quantizing float")
     if n_exponent_bits is None:
         n_exponent_bits = Quantizer.n_exponent_bits
     if n_mantissa_bits is None:
         n_mantissa_bits = Quantizer.n_mantissa_bits
-
-    #print("num exponent: " + str(n_exponent_bits) + 
-    #      " num mantissa: " + str(n_mantissa_bits))
 
     in_shape = input.shape
     d_1 = input.reshape(input.numel()).detach()

@@ -51,10 +51,7 @@ class Linear(Base):
             self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, input):
-        print("input")
-        print(input)
         self.quantize(input)
-        print("weight")
         self.quantize(self.weight)
         if self.bias is not None:
             self.quantize(self.bias)
