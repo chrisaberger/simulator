@@ -25,9 +25,10 @@ class LogInterpolator(Base):
         fn = FInterpolator(torch.log2, kind)
         mantissa_min = 1.19e-7 # For float32 
         mantissa_max = 2.0 # For float 32
-        fn.adapt_linear(mantissa_min, mantissa_max, 1e-4, 1e-4)
+        fn.adapt_linear(mantissa_min, mantissa_max, 1e-2, 1e-2)
         #fn.naive_chunking(mantissa_min, mantissa_max, 100)
         self.interp = fn.forward_fn_interpolate
+        print("Log Num Points: " + str(len(fn.xin)))
 
     def forward(self, input):
         return FLog.apply(input, self.interp)

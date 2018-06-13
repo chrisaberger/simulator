@@ -3,6 +3,7 @@ import torch
 from torch.autograd import Variable
 from torch import optim
 from data_util import load_mnist
+import hazysim as sim
 
 def build_model(input_dim, output_dim):
     # We don't need the softmax layer here since CrossEntropyLoss already
@@ -21,6 +22,7 @@ def train(model, loss, optimizer, x_val, y_val):
     optimizer.zero_grad()
 
     # Forward
+    print(x.sum())
     fx = model.forward(x)
     output = loss.forward(fx, y)
 
@@ -48,8 +50,13 @@ def main():
     n_examples, n_features = trX.size()
     n_classes = 10
     model = build_model(n_features, n_classes)
-    loss = torch.nn.CrossEntropyLoss(size_average=True)
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    #loss = torch.nn.CrossEntropyLoss(size_average=True)
+    loss = sim.nn.ICrossEntropyLoss(size_average=True)
+
+
+    #optimizer = hazysim.optim.HALP(model.parameters(), lr=0.01, momentum=0.9)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+
     batch_size = 100
 
     for i in range(100):
