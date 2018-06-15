@@ -3,8 +3,9 @@ import torch
 from torch.autograd import Variable
 import copy, logging
 import math
+from .lpsgd import *
 
-class HALP(torch.optim.SGD):
+class HALP(LPSGD):
     """Implements high-accuracy low-precision algorithm.
     Args:
         params (iterable): iterable of parameters to optimize
@@ -31,8 +32,18 @@ class HALP(torch.optim.SGD):
 
         self._curr_w = [p.data for p in params]
         self._curr_grad = [p.data.clone() for p in params]
-        self._z = [p.data.clone() for p in params]
-        self._prev_w = [p.data.clone() for p in params]
+        
+        self._w = [p.data.clone() for p in params]
+        self._w_grad = [p.data.clone() for p in params]
+        self._z = [p.clone() for p in params]
+        self._quant_w = [p.data.clone() for p in params]
+
+        #for w in self._w:
+        #    w[w == w] = 0.69
+        #self._w_grad[self._w_grad == self._w_grad] = 0.69
+        #self._set_weights_grad(self._w, self._w_grad)
+        self._set_weights_grad(self._w, self._w_grad, self._w, self._w_grad)
+
 
     def __setstate__(self, state):
         super(self.__class__, self).__setstate__(state)
@@ -43,15 +54,20 @@ class HALP(torch.optim.SGD):
                 p.grad.detach()
                 p.grad.zero_()
 
-    def _set_weights_grad(self,ws,gs):
+    def _set_weights_grad(self, wssrc, gssrc, wsdst=None, gsdst=None):
         """ Set the pointers in params to ws and gs for p.data and p.grad.data
         respectively. This allows us to avoid copying data in and out of parameters.
         """
         for idx, p in enumerate(self._params):
-            if ws is not None: p.data = ws[idx]
-            if gs is not None and p.grad is not None:
-                p.grad.data = gs[idx]
-                assert (p.grad.data.data_ptr() == gs[idx].data_ptr())
+            if wsdst is not None:
+                wsdst[idx].data.copy_(p.data)
+            if wssrc is not None: 
+                p.data.copy_(wssrc[idx].data)
+            if gsdst is not None and p.grad is not None:
+                gsdst[idx].data.copy_(p.grad.data)
+            if gssrc is not None and p.grad is not None:
+                p.grad.data.copy_(gssrc[idx].data)
+                #assert (p.grad.data.data_ptr() == gs[idx].data_ptr())
 
     def _rescale(self):
         """Update scale factors for z."""
@@ -64,12 +80,30 @@ class HALP(torch.optim.SGD):
         for p in self._z:
             p.fill_(0)
 
-    def _recenter(self, ws):
-        """Add the values in self._z to ws."""
-        for w, z in zip(ws, self._z):
-            w.add_(z)
-
     def step(self):
+        self._set_weights_grad(self._w, None, self._w)
+        super(self.__class__, self).step()
+
+    def recenter(self):
+        #self._set_weights_grad(self._w, self._w_grad)
+        """
+        w <- w + fp32(z)
+        """
+        for w, z in zip(self._w, self._z):
+            z.quantize_()
+            w.add_(z)
+        """
+        z <- 0
+        """
+        self._reset_z()
+        """
+        w_hat <- quant(w)
+        """
+        for p, p0 in zip(self._quant_w, self._w):
+            p.copy_(p0)
+            p.quantize_()
+
+    def step_inner(self):
         """Performs a single optimization step.
         Arguments:
             closure (callable): A closure that reevaluates the model
@@ -77,17 +111,19 @@ class HALP(torch.optim.SGD):
         """
 
         # Set the param pointers to z to update z with step
-        self._set_weights_grad(self._z, None)
+        self._set_weights_grad(self._z)
 
         loss = super(self.__class__, self).step()
 
-        # Set curr_w to prev_w + z
-        for p, p0 in zip(self._curr_w, self._prev_w):
-            p.copy_(p0)
-        self._recenter(self._curr_w)
-        # Update param pointers to curr_w for user access
-        self._set_weights_grad(self._curr_w, self._curr_grad)
+        # curr_w = quant(w) + z
+        for cw, qw in zip(self._curr_w, self._quant_w):
+            cw.copy_(qw)
+        for cw, z in zip(self._curr_w, self._z):
+            z.quantize_()
+            cw.add_(z)
+            cw.quantize_()
 
-        self._recenter(self._prev_w)
+        # Update param pointers to curr_w for user access
+        self._set_weights_grad(self._curr_w)
 
         return loss

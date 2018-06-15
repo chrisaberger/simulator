@@ -37,6 +37,7 @@ class Linear(Base):
         self.in_features = in_features
         self.out_features = out_features
         self.weight = Parameter(torch.Tensor(out_features, in_features))
+        print(self.weight.data_ptr)
         if bias:
             self.bias = Parameter(torch.Tensor(out_features))
         else:
@@ -51,10 +52,10 @@ class Linear(Base):
             self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, input):
-        self.quantize(input)
-        self.quantize(self.weight)
+        input = self.quantize(input)
+        self.weight.data = self.quantize(self.weight)
         if self.bias is not None:
-            self.quantize(self.bias)
+            self.bias = self.quantize(self.bias)
         return F.linear(input, self.weight, self.bias)
 
     def extra_repr(self):

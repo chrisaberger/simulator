@@ -79,7 +79,7 @@ class Base(torch.nn.Module):
 
     def quantize(self, input):
         if self.quantize_fixed:
-            input.quantize_fixed_(self.scale_factor, self.n_bits)
+            return input.quantize_fixed_(self.scale_factor, self.n_bits)
         else:
-            input.quantize_float_(self.n_exponent_bits, self.n_mantissa_bits)
+            return input.quantize_float_(self.n_exponent_bits, self.n_mantissa_bits)
 

@@ -26,6 +26,12 @@ class Quantizer:
         Quantizer.scale_factor = scale_factor
         Quantizer.quantize_fixed = True
 
+def quantize_(input):
+    if Quantizer.quantize_fixed:
+        return input.quantize_fixed_()
+    else:
+        return input.quantize_float_()
+
 def quantize_fixed_(input, scale_factor = None, bits = None, biased=False):
     inp = input.clone()
     if bits == None:
@@ -46,7 +52,10 @@ def quantize_fixed_(input, scale_factor = None, bits = None, biased=False):
     rounded = inp.div_(scale_factor).add_(adj_val).floor_()
     clipped_value = rounded.clamp_(min_val, max_val)
     clipped_value *= scale_factor
+    #input.data_ptr = inp.data_ptr
     input.data = inp.data
+    input = inp
+    return inp
 
 class IEEEFloatingPointData:
     def __init__(self, dtype):
@@ -129,7 +138,6 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     q = IEEEFloatingPointData(input.dtype)
 
     input = np.ascontiguousarray(input)
-    print(input)
     XInt = input.ctypes.data_as(ctypes.POINTER(q.ctype*len(input)))
 
     new_np_array = np.ctypeslib.as_array(\
@@ -187,8 +195,6 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     #       (−1)^signbit× 2^(min_exp) x 0.significandbits
     # e = 1111..., +inifinity when mantissa = 0, NaN when mantissa ne 0.  
     exponent_filter = exponent_raw != q.special_exponent
-    print(np.where(exponent_filter, reconstructed_val, input))
-    print()
     return np.where(exponent_filter, reconstructed_val, input)
 
 def quantize_float_(input, n_exponent_bits = None, n_mantissa_bits = None):
@@ -205,9 +211,11 @@ def quantize_float_(input, n_exponent_bits = None, n_mantissa_bits = None):
                               dtype=input.dtype, 
                               requires_grad=input.requires_grad) \
                                 .reshape(in_shape).data
+    return input
 
 
 # Monkey patch torch.Tensor
+torch.Tensor.quantize_ = quantize_
 torch.Tensor.quantize_float_ = quantize_float_
 torch.Tensor.quantize_fixed_ = quantize_fixed_
 torch.Tensor.break_down_fp_ = break_down_fp_
