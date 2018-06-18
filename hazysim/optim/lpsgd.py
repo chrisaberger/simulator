@@ -75,7 +75,8 @@ class LPSGD(Optimizer):
             for p in group['params']:
                 if p.grad is None:
                     continue
-                d_p = p.grad.data.quantize_()
+                d_p = p.grad.data
+                d_p.quantize_()
                 if weight_decay != 0:
                     d_p.add_(weight_decay, p.data)
                 if momentum != 0:
@@ -87,15 +88,16 @@ class LPSGD(Optimizer):
                     else:
                         buf = param_state['momentum_buffer']
                         buf.mul_(momentum).add_(1 - dampening, d_p)
-                        param_state['momentum_buffer'] = buf.quantize_()
+                        buf.quantize_()
                     if nesterov:
                         d_p = d_p.add(momentum, buf)
-                        p.grad.data = d_p.quantize_()
+                        d_p.quantize_()
                     else:
                         d_p = buf
-                        p.grad.data = d_p.quantize_()
+                        d_p.quantize_()
 
                 p.data.add_(-group['lr'], d_p)
-                p.data = p.data.quantize_()
+                p.data.quantize_()
+                print(p.data)
 
         return loss

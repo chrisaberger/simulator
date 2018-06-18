@@ -28,9 +28,9 @@ class Quantizer:
 
 def quantize_(input):
     if Quantizer.quantize_fixed:
-        return input.quantize_fixed_()
+        input.quantize_fixed_()
     else:
-        return input.quantize_float_()
+        input.quantize_float_()
 
 def quantize_fixed_(input, scale_factor = None, bits = None, biased=False):
     inp = input.clone()
@@ -52,10 +52,7 @@ def quantize_fixed_(input, scale_factor = None, bits = None, biased=False):
     rounded = inp.div_(scale_factor).add_(adj_val).floor_()
     clipped_value = rounded.clamp_(min_val, max_val)
     clipped_value *= scale_factor
-    #input.data_ptr = inp.data_ptr
-    input.data = inp.data
-    input = inp
-    return inp
+    input.data.copy_(inp.data)
 
 class IEEEFloatingPointData:
     def __init__(self, dtype):
@@ -207,11 +204,10 @@ def quantize_float_(input, n_exponent_bits = None, n_mantissa_bits = None):
     d_1 = input.reshape(input.numel()).detach()
     new_array = quantize_floating_point_(
                     d_1.numpy(), n_exponent_bits, n_mantissa_bits)
-    input.data = torch.tensor(new_array, 
+    input.data.copy_(torch.tensor(new_array, 
                               dtype=input.dtype, 
                               requires_grad=input.requires_grad) \
-                                .reshape(in_shape).data
-    return input
+                                .reshape(in_shape).data)
 
 
 # Monkey patch torch.Tensor

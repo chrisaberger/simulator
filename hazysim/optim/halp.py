@@ -33,17 +33,14 @@ class HALP(LPSGD):
         self._curr_w = [p.data for p in params]
         self._curr_grad = [p.data.clone() for p in params]
         
-        self._w = [p.data.clone() for p in params]
+        self._w = [torch.zeros_like(p.data) for p in params]
         self._w_grad = [p.data.clone() for p in params]
         self._z = [p.clone() for p in params]
         self._quant_w = [p.data.clone() for p in params]
 
-        #for w in self._w:
-        #    w[w == w] = 0.69
-        #self._w_grad[self._w_grad == self._w_grad] = 0.69
-        #self._set_weights_grad(self._w, self._w_grad)
-        self._set_weights_grad(self._w, self._w_grad, self._w, self._w_grad)
-
+        self._set_weights_grad(self._w, self._w_grad)
+        self._set_weights_grad(self._w, self._w_grad)
+        exit()
 
     def __setstate__(self, state):
         super(self.__class__, self).__setstate__(state)
@@ -54,20 +51,27 @@ class HALP(LPSGD):
                 p.grad.detach()
                 p.grad.zero_()
 
-    def _set_weights_grad(self, wssrc, gssrc, wsdst=None, gsdst=None):
+    def _set_weights_grad(self, ws, gs):
         """ Set the pointers in params to ws and gs for p.data and p.grad.data
         respectively. This allows us to avoid copying data in and out of parameters.
         """
-        for idx, p in enumerate(self._params):
-            if wsdst is not None:
-                wsdst[idx].data.copy_(p.data)
-            if wssrc is not None: 
-                p.data.copy_(wssrc[idx].data)
-            if gsdst is not None and p.grad is not None:
-                gsdst[idx].data.copy_(p.grad.data)
-            if gssrc is not None and p.grad is not None:
-                p.grad.data.copy_(gssrc[idx].data)
-                #assert (p.grad.data.data_ptr() == gs[idx].data_ptr())
+        print()
+        for idx, p in enumerate(self.param_groups[0]['params']):
+            print(str(p.data_ptr) + " " + str(ws[idx].data_ptr) + " " + str(p.data.data_ptr))
+            print(p.data)
+            #print(p)
+            #tmp = torch.zeros_like(p.data)
+            #print("tmp")
+            #print(tmp.data_ptr)
+            if ws is not None: p.data = ws[idx]
+            if gs is not None and p.grad is not None:
+                p.grad.data = gs[idx]
+                assert (p.grad.data.data_ptr() == gs[idx].data_ptr())
+
+            print(str(p.data_ptr) + " " + str(ws[idx].data_ptr) + " " + str(p.data.data_ptr))
+            print(p.data)
+            #print(p.data.data_ptr)
+            #print(p)
 
     def _rescale(self):
         """Update scale factors for z."""
@@ -81,8 +85,10 @@ class HALP(LPSGD):
             p.fill_(0)
 
     def step(self):
-        self._set_weights_grad(self._w, None, self._w)
         super(self.__class__, self).step()
+
+    def prep_outer(self):
+        self._set_weights_grad(self._w, self._w_grad)
 
     def recenter(self):
         #self._set_weights_grad(self._w, self._w_grad)
@@ -103,6 +109,7 @@ class HALP(LPSGD):
             p.copy_(p0)
             p.quantize_()
 
+
     def step_inner(self):
         """Performs a single optimization step.
         Arguments:
@@ -111,11 +118,16 @@ class HALP(LPSGD):
         """
 
         # Set the param pointers to z to update z with step
-        self._set_weights_grad(self._z)
+        #print(self._z)
+        self._set_weights_grad(self._z, None)
 
         loss = super(self.__class__, self).step()
 
         # curr_w = quant(w) + z
+        print()
+        print(self._w)
+        print(self._quant_w)
+        
         for cw, qw in zip(self._curr_w, self._quant_w):
             cw.copy_(qw)
         for cw, z in zip(self._curr_w, self._z):
@@ -123,7 +135,10 @@ class HALP(LPSGD):
             cw.add_(z)
             cw.quantize_()
 
+        print(self._curr_w)
+        exit()
+
         # Update param pointers to curr_w for user access
-        self._set_weights_grad(self._curr_w)
+        self._set_weights_grad(self._curr_w, self._curr_grad)
 
         return loss
