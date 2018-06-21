@@ -90,7 +90,6 @@ class Linear:
         # grad out is (batch_size x out_features)
         # input is (batch_size x in_features)
         self.weight.offset_grad = np.dot( grad_output.T, self.saved_input )
-        print(self.weight.offset_grad.shape)
         np.copyto( self.lp_back_outer_result,
                     self._numpy_quantize( self.weight.offset_grad ) )
 
@@ -108,11 +107,8 @@ class Linear:
                         self.weight.T() )
 
     def lp_backward(self, grad_output, batch_index):
-        print("HERE")
-
         if not grad_output.is_quantized():
             grad_output.quantize(self.num_bits, self.scale_factor)
-
 
         return self._lp_multiply( \
                 self._get_data(self.lp_back_outer_result, batch_index), 
