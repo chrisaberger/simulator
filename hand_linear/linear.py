@@ -31,8 +31,11 @@ class Linear:
 
         # Needed to 'cache' the full precision result from the outer loop. 
         self.batch_size = batch_size
-        self.lp_fwd_outer_result = np.zeros((n_samples, in_features))
-        self.lp_back_outer_result = np.zeros((n_samples, in_features))
+        self.lp_fwd_outer_result = np.zeros((n_samples, out_features))
+        self.lp_back_outer_result = np.zeros_like(self.weight.offset)
+
+        # Needed for backwards pass
+        self.saved_input = None
 
     def recenter(self):
         self.weight.recenter(self.num_bits, self.scale_factor)
@@ -40,7 +43,7 @@ class Linear:
     def _numpy_quantize(self, np_array):
         return quantize( np_array, self.num_bits, self.scale_factor)
 
-    def _lp_multiply(self, fp_result, x):
+    def _lp_multiply(self, fp_result, x, y):
         """
         We will call each term inside here 'term1', 'term2', and 'term3' in the 
         code.
@@ -53,44 +56,65 @@ class Linear:
         # Should all be in LP.
         term1 = fp_result
 
-        term2 = self._numpy_quantize(np.dot(x.delta, self.weight.lp_offset))
+        term2 = self._numpy_quantize(np.dot(x.delta, y.lp_offset))
         
         term3 = self._numpy_quantize( np.dot( (x.lp_offset + x.delta), 
-                                        self.weight.delta ) )
+                                        y.delta ) )
 
         return SplitTensor(term1, term2+term3)
+
+    def _get_data(self, data, batch_index):
+        index = batch_index * self.batch_size
+        return data[index:index + self.batch_size, :]
+
+    def _save_data(self, dst_array, src_array, batch_index):
+        data = self._get_data(dst_array, batch_index) 
+        np.copyto( data, src_array )
+
     def forward(self, input, batch_index):
         """
         Computes the full precision forward value and stores it in 
         'self.fp_result' for us to use in the low precision foward.
         """
-        result = np.dot(input.offset, self.weight.offset)
-        index = batch_index * self.batch_size
-        self.lp_fwd_outer_result[index:index+self.batch_size,:] = \
-                             self._numpy_quantize( np.array(result, copy=True) )
+
+        # Needed for backwards pass
+        self.saved_input = np.array(input.offset, copy = True)
+
+        result = np.dot(input.offset, self.weight.offset.T)
+        self._save_data( self.lp_fwd_outer_result,
+                         self._numpy_quantize( result ),
+                         batch_index )
         return result
 
-    def backward(self, grad_in):
-        #grad_in * transpose(self.weight) 
-        print("HERE")
+    def backward(self, grad_output, batch_index):
+        # grad out is (batch_size x out_features)
+        # input is (batch_size x in_features)
+        self.weight.offset_grad = np.dot( grad_output.T, self.saved_input )
+        print(self.weight.offset_grad.shape)
+        np.copyto( self.lp_back_outer_result,
+                    self._numpy_quantize( self.weight.offset_grad ) )
 
-
-    def lp_forward(self, input, index):
-        """
-        We will call each term inside here 'term1', 'term2', and 'term3' in the 
-        code.
-
-         f_{k+1}(x,d1,..,dk) = g( 
-            [[ ok * fk(x,\bar 0) ]] + 
-            [[ ok * (fk(x,d1,...,d(k-1))) -  fk(x,\bar 0)) ]] +  
-            [[dk*fk(x, \bar d)]] ) 
-        """
-
+    def lp_forward(self, input, batch_index):
         # Check if this is the first layer where the input needs to be 
         # quantized.
         if not input.is_quantized():
             input.quantize(self.num_bits, self.scale_factor)
 
+        self.saved_input = input
+
         return self._lp_multiply( \
-                        self.lp_fwd_outer_result[index:index+self.batch_size,:], 
-                        input )
+                        self._get_data(self.lp_fwd_outer_result, batch_index), 
+                        input,
+                        self.weight.T() )
+
+    def lp_backward(self, grad_output, batch_index):
+        print("HERE")
+
+        if not grad_output.is_quantized():
+            grad_output.quantize(self.num_bits, self.scale_factor)
+
+
+        return self._lp_multiply( \
+                self._get_data(self.lp_back_outer_result, batch_index), 
+                grad_output.T(),
+                self.saved_input )
