@@ -71,8 +71,8 @@ def main():
     torch.manual_seed(42)
     # Sets the global precision level (if you set per layer this is overridden
     # for said layer).
-    #sim.nn.Quantizer.set_float_precision(num_bits=8, num_mantissa_bits=3)
-    sim.nn.Quantizer.set_fixed_precision(scale_factor=1e-2, num_bits=8)
+    #sim.nn.Quantizer.set_float_precision(num_bits=32, num_mantissa_bits=11)
+    #sim.nn.Quantizer.set_fixed_precision(scale_factor=1e-2, num_bits=8)
     trX, teX, trY, teY = load_mnist(onehot=False)
     trX = torch.from_numpy(trX).float()
     teX = torch.from_numpy(teX).float()
@@ -81,8 +81,8 @@ def main():
     n_examples, n_features = trX.size()
     n_classes = 10
     model = build_model(n_features, n_classes)
-    loss = sim.nn.ICrossEntropyLoss(size_average=True)
-    #loss = torch.nn.CrossEntropyLoss(size_average=True)
+    #loss = sim.nn.ICrossEntropyLoss(size_average=True)
+    loss = torch.nn.CrossEntropyLoss(size_average=True)
     
     # Set the precision for only the loss function.
     # loss.register_precision(num_bits=25, num_mantissa_bits=12)
@@ -115,6 +115,7 @@ def main():
             start, end = k * batch_size, (k + 1) * batch_size
             cost += train(model, loss, optimizer,
                           trX[start:end], trY[start:end])
+        optimizer.recenter2()
         predY = predict(model, teX)
         print("Epoch %d, cost = %f, acc = %.2f%%"
               % (i + 1, cost / num_batches, 100. * np.mean(predY == teY)))

@@ -98,6 +98,5 @@ class LPSGD(Optimizer):
 
                 p.data.add_(-group['lr'], d_p)
                 p.data.quantize_()
-                print(p.data)
 
         return loss
