@@ -2,7 +2,7 @@ import numpy as np
 import math
 
 from linear import Linear
-from tensor import Tensor
+from splittensor import SplitTensor
 
 n_samples = 100
 n_in_features = 1
@@ -24,14 +24,15 @@ for epoch in range(0, num_epochs):
         lin_layer.recenter() # var = offset + delta
         # Outer Loop
         for i in range(0, num_batches):
-            lin_layer.forward(Tensor(x[i*batch_size:i*batch_size+batch_size,:]), i)
+            inp = SplitTensor(x[i*batch_size:i*batch_size+batch_size,:])
+            lin_layer.forward(inp, i)
             # lin_layer.backward()
             # lin_layer.step()
         # potentially reset scale factor here and quantize the saved value.
 
     # Inner Loop
     for i in range(0, num_batches):
-        x_in = Tensor(x[i*batch_size:i*batch_size+batch_size,:])
+        x_in = SplitTensor(x[i*batch_size:i*batch_size+batch_size,:])
         lin_layer.lp_forward(x_in, i)
         # lin_layer.backward()
         # lin_layer.step()
