@@ -32,7 +32,6 @@ for epoch in range(0, num_epochs):
     # Inner Loop
     for i in range(0, num_batches):
         x_in = Tensor(x[i*batch_size:i*batch_size+batch_size,:])
-        x_in.quantize(lin_layer.num_bits, lin_layer.scale_factor)
         lin_layer.lp_forward(x_in, i)
         # lin_layer.backward()
         # lin_layer.step()

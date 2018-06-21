@@ -11,15 +11,19 @@ class Tensor:
 
     The tensor also supports quantization around various variables when needed. 
     """
-    def __init__(self, data):
+    def __init__(self, data, delta = None):
         """
         Accepts as input a numpy array in the 'data' field.
         """
         self.offset = np.array(data) # full precision offset
-        self.lp_offset = None # low precision offset
-        self.delta = np.zeros_like(self.offset) # always low precision
+        self.lp_offset = np.array(data) # low precision offset
+
+        if delta is None:
+            delta = np.zeros_like(self.offset)
+        self.delta = delta
 
     def quantize(self, num_bits, scale_factor):
         self.lp_offset = quantize(self.offset, num_bits, scale_factor)
+        self.delta = quantize(self.delta, num_bits, scale_factor)
 
 

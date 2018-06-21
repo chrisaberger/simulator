@@ -49,6 +49,9 @@ class Linear:
             np.array(result, copy=True), self.num_bits, self.scale_factor)
         return result
 
+    def _quantize(self, np_array):
+        return quantize( np_array, self.num_bits, self.scale_factor)
+    
     def lp_forward(self, input, index):
         """
         We will call each term inside here 'term1', 'term2', and 'term3' in the 
@@ -59,19 +62,16 @@ class Linear:
             [[ ok * (fk(x,d1,...,d(k-1))) -  fk(x,\bar 0)) ]] +  
             [[dk*fk(x, \bar d)]] ) 
         """
+        input.quantize(self.num_bits, self.scale_factor)
 
         # Should all be in LP.
         index = index*self.batch_size
         term1 = self.lp_fwd_result[index:index+self.batch_size,:]
 
         delta = (input.lp_offset+input.delta) - input.lp_offset
-        term2 = quantize( np.dot( delta, self.weight.lp_offset), 
-                          self.num_bits, 
-                          self.scale_factor)
+        term2 = self._quantize(np.dot(delta, self.weight.lp_offset))
         
-        term3 = quantize( np.dot( (input.lp_offset+input.delta), self.weight.delta),
-                          self.num_bits,
-                          self.scale_factor )
+        term3 = self._quantize( np.dot( (input.lp_offset+input.delta), 
+                                        self.weight.delta ) )
 
-        return term1 + term2 + term3
-
+        return Tensor(term1, term2+term3)
