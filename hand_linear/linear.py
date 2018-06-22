@@ -37,7 +37,7 @@ class Linear:
         num_batches = math.ceil( n_samples / batch_size )
         self.lp_back_outer_result = np.zeros((num_batches * self.out_features, 
                                               self.in_features))
-        
+
         # Needed for backwards pass
         self.saved_input = None
 
@@ -90,7 +90,7 @@ class Linear:
         self._save_data( self.lp_fwd_outer_result,
                          self._numpy_quantize( result ),
                          batch_index )
-        return result
+        return SplitTensor(result)
 
     def backward(self, grad_output, batch_index):
         # grad out is (batch_size x out_features)
