@@ -29,10 +29,10 @@ for epoch in range(0, num_epochs):
             inp = SplitTensor(x[i*batch_size:i*batch_size+batch_size,:])
             cur_batch_size = x[i*batch_size:i*batch_size+batch_size,:].shape[0]
             fwd = lin_layer.forward(inp, i)
-            dummy_grad = np.random.rand(cur_batch_size, n_out_features)
+            loss_grad = cross_entropy(fwd.offset, 
+                                      y[i*batch_size:i*batch_size+batch_size,])
             lin_layer.backward(dummy_grad, i)
-            cross_entropy(fwd.offset, 
-                          y[i*batch_size:i*batch_size+batch_size,])
+
             # lin_layer.step()
         # potentially reset scale factor here and quantize the saved value.
 
