@@ -1,6 +1,7 @@
 from splittensor import SplitTensor
 from quantize import quantize
 import numpy as np
+import math
 
 class Linear:
     """
@@ -32,8 +33,11 @@ class Linear:
         # Needed to 'cache' the full precision result from the outer loop. 
         self.batch_size = batch_size
         self.lp_fwd_outer_result = np.zeros((n_samples, out_features))
-        self.lp_back_outer_result = np.zeros_like(self.weight.offset)
 
+        num_batches = math.ceil( n_samples / batch_size )
+        self.lp_back_outer_result = np.zeros((num_batches * self.out_features, 
+                                              self.in_features))
+        
         # Needed for backwards pass
         self.saved_input = None
 
@@ -43,6 +47,8 @@ class Linear:
     def _numpy_quantize(self, np_array):
         return quantize( np_array, self.num_bits, self.scale_factor)
 
+    # TODO: This should probably go in another file as it doesn't really depend
+    # on the layer and is a standalone op.
     def _lp_multiply(self, fp_result, x, y):
         """
         We will call each term inside here 'term1', 'term2', and 'term3' in the 
@@ -90,8 +96,10 @@ class Linear:
         # grad out is (batch_size x out_features)
         # input is (batch_size x in_features)
         self.weight.offset_grad = np.dot( grad_output.T, self.saved_input )
-        np.copyto( self.lp_back_outer_result,
-                    self._numpy_quantize( self.weight.offset_grad ) )
+        index = batch_index*self.out_features
+        back_outer = self.lp_back_outer_result[index : index+self.out_features, ]
+        np.copyto( back_outer,
+                   self._numpy_quantize( self.weight.offset_grad ) )
 
     def lp_forward(self, input, batch_index):
         # Check if this is the first layer where the input needs to be 
@@ -109,8 +117,10 @@ class Linear:
     def lp_backward(self, grad_output, batch_index):
         if not grad_output.is_quantized():
             grad_output.quantize(self.num_bits, self.scale_factor)
-
+        
+        index = batch_index*self.out_features
+        back_outer = self.lp_back_outer_result[index:index+self.out_features, ]
         return self._lp_multiply( \
-                self._get_data(self.lp_back_outer_result, batch_index), 
+                back_outer, 
                 grad_output.T(),
                 self.saved_input )
