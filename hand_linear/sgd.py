@@ -36,7 +36,6 @@ w = np.random.uniform(0,
 for epoch in range(0, num_epochs):
     num_batches = n_samples // batch_size
     cost = 0
-    print(num_batches)
     for k in range(num_batches):
         # Get x,y data we will train from.
         batch_index = k * batch_size
