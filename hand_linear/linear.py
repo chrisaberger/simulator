@@ -20,12 +20,19 @@ class Linear:
     weight – the learnable weights of the module of shape 
     (out_features x in_features)
     """
-    def __init__(self, n_samples, batch_size, n_bits, in_features, out_features):
+    def __init__(self, 
+                 n_samples, 
+                 batch_size, 
+                 n_bits, 
+                 in_features, 
+                 out_features):
+        
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = SplitTensor(np.random.uniform( 0,
-                                                0.1, 
-                                                (out_features, in_features)) )
+        weight_data = np.random.uniform(0,
+                                        1.0, 
+                                        (out_features, in_features))
+        self.weight = SplitTensor(weight_data)
 
         self.num_bits = n_bits
         self.scale_factor = 1e-2
@@ -74,27 +81,32 @@ class Linear:
         return data[index:index + self.batch_size, :]
 
     def _save_data(self, dst_array, src_array, batch_index):
-        data = self._get_data(dst_array, batch_index) 
+        data = self._get_data( dst_array, batch_index ) 
         np.copyto( data, src_array )
 
-    def forward(self, input, batch_index):
+    def forward(self, input, batch_index = None):
         """
         Computes the full precision forward value and stores it in 
         'self.fp_result' for us to use in the low precision foward.
         """
 
-        # Needed for backwards pass
-        self.saved_input = np.array(input.offset, copy = True)
+        if type(input) is SplitTensor:
+            # Needed for backwards pass
+            self.saved_input = np.array(input.offset, copy = True)
+            result = np.dot(input.offset, self.weight.offset.T)
+            if batch_index is not None:
+                self._save_data(self.lp_fwd_outer_result,
+                                self._numpy_quantize(result),
+                                batch_index)
+            return SplitTensor(result)
+        else:
+            return np.dot(input, self.weight.offset.T)
 
-        result = np.dot(input.offset, self.weight.offset.T)
-        self._save_data( self.lp_fwd_outer_result,
-                         self._numpy_quantize( result ),
-                         batch_index )
-        return SplitTensor(result)
 
     def backward(self, grad_output, batch_index):
         # grad out is (batch_size x out_features)
         # input is (batch_size x in_features)
+        print(self.saved_input)
         self.weight.offset_grad = np.dot( grad_output.T, self.saved_input )
         index = batch_index*self.out_features
         back_outer = self.lp_back_outer_result[index : index+self.out_features, ]
@@ -113,6 +125,10 @@ class Linear:
                         self._get_data(self.lp_fwd_outer_result, batch_index), 
                         input,
                         self.weight.T() )
+
+    def step(self, lr):
+        assert(self.weight.offset_grad is not None)
+        self.weight.offset = self.weight.offset - (lr * self.weight.offset_grad)
 
     def lp_backward(self, grad_output, batch_index):
         if not grad_output.is_quantized():
