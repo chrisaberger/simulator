@@ -1,9 +1,5 @@
 import numpy as np
 import math
-
-from linear import Linear
-from splittensor import SplitTensor
-from loss import *
 import mnist
 
 def stablesoftmax(x):
@@ -13,12 +9,12 @@ def stablesoftmax(x):
     return exps / np.sum(exps, axis=1).reshape(-1,1)
 
 # User input parameters.
-batch_size = 100
-lr = 0.01
-num_epochs = 10
+batch_size = 128
+lr = 1e-5
+num_epochs = 100
 
 # Load the MNIST data.
-mnist.init()
+#mnist.init()
 x_train, t_train, x_test, t_test = mnist.load()
 
 n_samples = x_train.shape[0]
@@ -31,7 +27,7 @@ num_batches = math.ceil(n_samples/batch_size)
 avg = True
 # Randomly initialize weights.
 w = np.random.uniform(0,
-                      1.0, 
+                      0.1, 
                       (n_out_features, n_in_features))
 for epoch in range(0, num_epochs):
     num_batches = n_samples // batch_size
@@ -47,9 +43,7 @@ for epoch in range(0, num_epochs):
         pred = stablesoftmax(xi_dot_w)
         for i in range(len(x)):
             pred[i][y[i]] = pred[i][y[i]] - 1
-        grad = np.dot(pred.T, x) / float(len(x)) # Average Gradient.
-        cost += grad.sum()
-        
+        grad = np.dot(pred.T, x)      
         # SGD Step.
         w = w - lr * grad
 
