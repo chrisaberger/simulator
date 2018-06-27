@@ -9,8 +9,8 @@ def stablesoftmax(x):
     return exps / np.sum(exps, axis=1).reshape(-1,1)
 
 # User input parameters.
-batch_size = 128
-lr = 1e-5
+batch_size = 100
+lr = 0.01
 num_epochs = 100
 
 # Load the MNIST data.
