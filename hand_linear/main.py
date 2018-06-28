@@ -79,7 +79,7 @@ in_data = utils.OptimizerData(num_epochs, num_batches, batch_size,
                               x_train, x_test, y_train, y_test)
 
 print("SGD BASELINE")
-#sgd_baseline(in_data, copy.deepcopy(model))
+sgd_baseline(in_data, copy.deepcopy(model))
 print()
 print("BIT CENTERING")
 bit_centering(in_data, copy.deepcopy(model))

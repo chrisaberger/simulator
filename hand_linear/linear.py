@@ -112,6 +112,7 @@ class Linear:
         Computes the full precision forward value and stores it in 
         'self.fp_result' for us to use in the low precision foward.
         """
+        self.saved_input = input
         result = self.forward(input, train=False)
         q_result = self._numpy_quantize(result, self.fwd_scale_factor)
         self._save_data(self.lp_fwd_outer_result,
@@ -127,8 +128,8 @@ class Linear:
             start, end = \
                 batch_index*self.out_features, (batch_index+1)*self.out_features
             back_outer = self.lp_back_outer_result[start:end, ]
-            #print(str(np.amax(self.weight.offset_grad)) + " " + str(np.amin(self.weight.offset_grad)))
             q_w_offset = self._numpy_quantize( self.weight.offset_grad, self.bck_scale_factor )
+            
             np.copyto( back_outer, q_w_offset )
 
     def forward_inner(self, input, batch_index):
@@ -162,7 +163,7 @@ class Linear:
         
         index = batch_index*self.out_features
         back_outer = self.lp_back_outer_result[index:index+self.out_features, ]
-        
+
         self.weight.delta_grad = self._lp_multiply( \
                 back_outer, 
                 grad_output.T(),
