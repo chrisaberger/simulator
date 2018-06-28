@@ -17,7 +17,7 @@ class LogisticRegression:
                            scale_factor=scale_factor, 
                            in_features=in_features, 
                            out_features=out_features)
-        self.loss_layer = CrossEntropy()
+        self.loss_layer = CrossEntropy(n_samples, out_features, batch_size)
         self.lr = lr
         self.scale_factor = scale_factor
 
@@ -43,7 +43,7 @@ class LogisticRegression:
     ########################### Outer Methods ##################################
     def forward_store(self, x, y, batch_index):
         fwd = self.lin_layer.forward_store(x, batch_index)
-        return self.loss_layer.forward(fwd, y)
+        return self.loss_layer.forward_store(fwd, y, batch_index)
 
     def backward_store(self, batch_index):
         self.lin_layer.backward_store(self.loss_layer.backward(), batch_index)
@@ -55,9 +55,9 @@ class LogisticRegression:
         return self.loss_layer.forward(fwd, y)
 
     def backward_inner(self, batch_index):
-        self.lin_layer.debug_backward_inner(self.loss_layer.backward(), batch_index)
-        #self.lin_layer.backward_inner(SplitTensor(self.loss_layer.backward()), 
-        #                              batch_index)
+        #self.lin_layer.debug_backward_inner(self.loss_layer.backward(), batch_index)
+        self.lin_layer.backward_inner(self.loss_layer.backward_inner(batch_index), 
+                                      batch_index)
 
     def step_inner(self):
         self.lin_layer.step_inner(self.lr)
