@@ -45,10 +45,16 @@ class SplitTensor:
     def is_quantized(self):
         return self.lp_offset is not None
 
-    def recenter(self, num_bits, scale_factor):
+    def recenter(self):
         self.offset = self.offset + self.delta 
         self.delta = np.zeros_like(self.delta)
-        self.quantize(num_bits, scale_factor)
+        self.lp_offset = None
+
+    def data(self):
+        return self.offset + self.delta
+
+    def lp_data(self):
+        return self.lp_offset + self.delta
 
     def T(self):
         new_t = SplitTensor(self.offset.T, self.delta.T)

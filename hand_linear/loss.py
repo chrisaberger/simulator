@@ -1,4 +1,5 @@
 import numpy as np
+from splittensor import SplitTensor
 
 def stablesoftmax(x):
     """Compute the softmax of vector x in a numerically stable way."""
@@ -6,18 +7,25 @@ def stablesoftmax(x):
     exps = np.exp(shiftx)
     return exps / np.sum(exps, axis=1).reshape(-1,1)
 
-def cross_entropy(x, y):
-    pred = stablesoftmax(x)
-    for i in range(len(x)):
-        pred[i][y[i]] = pred[i][y[i]] - 1
-    return pred
-
 class CrossEntropy:
     def forward(self, x, y):
+        if type(x) is SplitTensor:
+            x = x.offset + x.delta
         self.pred = stablesoftmax(x)
+
+        # Compute Loss
+        logsm = -np.log(self.pred)
+        loss = 0
+        for i in range(len(x)):
+            loss += logsm[i, y[i]]
+        loss = loss / len(x)
+
+        # Compute Gradient
         for i in range(len(x)):
             self.pred[i][y[i]] = self.pred[i][y[i]] - 1
-        return self.pred.sum()/len(x)
+        self.pred = self.pred / len(x)
+
+        return loss
 
     def backward(self):
         return self.pred
