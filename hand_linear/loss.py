@@ -91,9 +91,6 @@ class CrossEntropy:
 
         return loss
 
-    def backward(self):
-        return self.pred
-
     def forward_store(self, x, y, batch_index):
         loss = self.forward(x, y)
 
@@ -102,6 +99,9 @@ class CrossEntropy:
         q_pred = quantize(self.pred, self.num_bits, self.scale_factor)
         np.copyto(store_location, q_pred)
         return loss
+
+    def backward(self):
+        return self.pred
 
     def backward_lp(self):
         return quantize(self.pred, self.num_bits, self.scale_factor)
