@@ -37,7 +37,6 @@ def predict(model, x_val):
     output = model.forward(x)
     return output.data.numpy().argmax(axis=1)
 
-
 def main():
     torch.manual_seed(42)
     trX, teX, trY, teY = load_mnist(onehot=False)

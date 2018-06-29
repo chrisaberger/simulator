@@ -6,6 +6,18 @@ import utils
 import model
 import copy
 
+from interpolator import *
+
+"""
+iexp = Interpolator(np.exp)
+iexp.adapt_linear(-100, 70, 5.5, 5.5)
+iexp.plot()
+a = np.array([-90.0, 5.0, 1.0, 0.5, 7.8, 60.9, 80.9])
+print(iexp.forward(a))
+print(np.exp(a))
+exit()
+"""
+
 def sgd_baseline(in_data, model):
     for epoch in range(0, in_data.num_epochs):
         cost = 0
@@ -20,6 +32,19 @@ def sgd_baseline(in_data, model):
                          cost/in_data.num_batches, 
                          100*np.mean(predY == in_data.y_test))
 
+def lp_sgd_baseline(in_data, model):
+    for epoch in range(0, in_data.num_epochs):
+        cost = 0
+        for batch_index in range(0, in_data.num_batches):
+            x, y = utils.get_data(batch_index, in_data)
+            cost += model.forward_lp(x, y)
+            model.backward_lp()
+            model.step()
+
+        predY = model.predict(in_data.x_test)
+        utils.print_info(epoch, 
+                         cost/in_data.num_batches, 
+                         100*np.mean(predY == in_data.y_test))
 
 def bit_centering(in_data, model):
     for epoch in range(0, in_data.num_epochs):
@@ -56,12 +81,13 @@ def bit_centering(in_data, model):
                          100*np.mean(predY == in_data.y_test))
 
 batch_size = 100
-num_epochs = 10
+num_epochs = 100
 T = 10
 lr = 0.01
 n_classes = 10
-n_bits = 8
-scale_factor = 1e-1
+n_bits = 4
+fwd_scale_factor = 10e-1
+bck_scale_factor = 10e-3
 
 utils.set_seed(42)
 x_train, x_test, y_train, y_test = load_mnist(onehot=False)
@@ -69,17 +95,23 @@ x_train, x_test, y_train, y_test = load_mnist(onehot=False)
 model = model.LogisticRegression(n_samples=x_train.shape[0], 
                                  batch_size=batch_size, 
                                  n_bits=n_bits,
-                                 scale_factor=scale_factor,
+                                 fwd_scale_factor=fwd_scale_factor,
+                                 bck_scale_factor=bck_scale_factor,
                                  in_features=x_train.shape[1], 
                                  out_features=n_classes,
                                  lr=lr)
 
 num_batches = math.ceil(x_train.shape[0]/batch_size)
+print(num_batches)
 in_data = utils.OptimizerData(num_epochs, num_batches, batch_size, 
                               x_train, x_test, y_train, y_test)
 
-print("SGD BASELINE")
-sgd_baseline(in_data, copy.deepcopy(model))
+
+#print("SGD BASELINE")
+#sgd_baseline(in_data, copy.deepcopy(model))
 print()
-print("BIT CENTERING")
-bit_centering(in_data, copy.deepcopy(model))
+print("LP SGD BASELINE")
+lp_sgd_baseline(in_data, copy.deepcopy(model))
+print()
+#print("BIT CENTERING")
+#bit_centering(in_data, copy.deepcopy(model))

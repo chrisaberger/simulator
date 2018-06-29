@@ -7,19 +7,22 @@ class LogisticRegression:
                  n_samples, 
                  batch_size, 
                  n_bits, 
-                 scale_factor,
+                 fwd_scale_factor,
+                 bck_scale_factor,
                  in_features, 
                  out_features, 
                  lr):
         self.lin_layer = Linear(n_samples=n_samples, 
                            batch_size=batch_size, 
                            n_bits=n_bits,
-                           scale_factor=scale_factor, 
+                           fwd_scale_factor=fwd_scale_factor,
+                           bck_scale_factor=bck_scale_factor, 
                            in_features=in_features, 
                            out_features=out_features)
-        self.loss_layer = CrossEntropy(n_samples, out_features, batch_size)
+        self.loss_layer = CrossEntropy(n_samples, out_features, batch_size, n_bits)
         self.lr = lr
-        self.scale_factor = scale_factor
+        self.fwd_scale_factor = fwd_scale_factor
+        self.bck_scale_factor = bck_scale_factor
 
     def predict(self, x):
         fwd = self.lin_layer.forward(x, train=False)
@@ -40,6 +43,18 @@ class LogisticRegression:
         self.lin_layer.step(self.lr)
     ############################################################################
 
+    ######################### LP Baseline Methods ##############################
+    def forward_lp(self, x, y):
+        fwd = self.lin_layer.forward_lp(x)
+        return self.loss_layer.forward_lp(fwd, y)
+
+    def backward_lp(self):
+        self.lin_layer.backward_lp(self.loss_layer.backward_lp())
+
+    def step_lp(self):
+        self.lin_layer.step_lp(self.lr)
+    ############################################################################
+
     ########################### Outer Methods ##################################
     def forward_store(self, x, y, batch_index):
         fwd = self.lin_layer.forward_store(x, batch_index)
@@ -52,7 +67,7 @@ class LogisticRegression:
     ########################### Inner Methods ##################################
     def forward_inner(self, x, y, batch_index):
         fwd = self.lin_layer.forward_inner(SplitTensor(x), batch_index)
-        return self.loss_layer.forward(fwd, y)
+        return self.loss_layer.forward_lp(fwd, y)
 
     def backward_inner(self, batch_index):
         #self.lin_layer.debug_backward_inner(self.loss_layer.backward(), batch_index)
