@@ -102,7 +102,6 @@ model = model.LogisticRegression(n_samples=x_train.shape[0],
                                  lr=lr)
 
 num_batches = math.ceil(x_train.shape[0]/batch_size)
-print(num_batches)
 in_data = utils.OptimizerData(num_epochs, num_batches, batch_size, 
                               x_train, x_test, y_train, y_test)
 
