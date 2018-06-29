@@ -67,7 +67,7 @@ class LogisticRegression:
     ########################### Inner Methods ##################################
     def forward_inner(self, x, y, batch_index):
         fwd = self.lin_layer.forward_inner(SplitTensor(x), batch_index)
-        return self.loss_layer.forward_lp(fwd, y)
+        return self.loss_layer.forward_interp(fwd.data(), y)
 
     def backward_inner(self, batch_index):
         #self.lin_layer.debug_backward_inner(self.loss_layer.backward(), batch_index)
@@ -81,3 +81,9 @@ class LogisticRegression:
         fwd = np.dot(x, self.lin_layer.weight.data().T)
         return fwd.argmax(axis=1)
     ############################################################################
+
+    def step_svrg(self, w_tilde_grad, g_tilde):
+        self.lin_layer.step_svrg(w_tilde_grad, g_tilde, self.lr)
+
+    def step_svrg_inner(self, w_tilde_grad, g_tilde):
+        self.lin_layer.step_svrg_inner(w_tilde_grad, g_tilde, self.lr)

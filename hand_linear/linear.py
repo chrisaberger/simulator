@@ -109,6 +109,9 @@ class Linear:
         assert(self.weight.offset_grad is not None)
         self.weight.offset = self.weight.offset - (lr * self.weight.offset_grad)
 
+    def step_svrg(self, w_tilde_grad, g_tilde, alpha):
+        self.weight.offset -= ( alpha * ( self.weight.offset_grad - w_tilde_grad + g_tilde ) )
+
     def forward_lp(self, input, train = True):
         """
         Computes the full precision forward value and stores it in 
@@ -156,7 +159,6 @@ class Linear:
             back_outer = self.lp_back_outer_result[start:end, ]
             q_w_offset = self._numpy_quantize( self.weight.offset_grad, 
                                                self.bck_scale_factor )
-            
             np.copyto( back_outer, q_w_offset )
 
     def forward_inner(self, input, batch_index):
@@ -196,3 +198,6 @@ class Linear:
         self.weight.delta = self._numpy_quantize( (self.weight.delta - w_x_lr), 
                                                   self.bck_scale_factor)
 
+    def step_svrg_inner(self, w_tilde_grad, g_tilde, alpha):
+        w = self.weight.delta_grad.data()
+        self.weight.offset -= ( alpha * ( w - w_tilde_grad + g_tilde ) )
