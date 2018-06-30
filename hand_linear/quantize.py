@@ -1,6 +1,6 @@
 import numpy as np
 
-def quantize(data, num_bits, scale_factor, biased=False):
+def quantize(data, num_bits, scale_factor, biased=True):
     if not biased:
         random_data = np.random.uniform(0, 1, size=data.shape)
         data = np.floor((data/float(scale_factor)) + random_data)

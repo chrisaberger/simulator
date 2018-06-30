@@ -73,7 +73,6 @@ class Linear:
         """
         # Should all be in LP.
         term1 = fp_result
-        #term1 = self._numpy_quantize(np.dot(x.offset, y.offset), sf)
 
         term2 = self._numpy_quantize(np.dot(x.delta, y.lp_offset), sf)
         
@@ -81,6 +80,41 @@ class Linear:
         term3 = self._numpy_quantize( np.dot(q_x, y.delta ), sf )
 
         delta = self._numpy_quantize(term2+term3, sf)
+
+        return SplitTensor(term1, delta)
+
+    def _debug_lp_multiply(self, fp_result, x, y, sf):
+        """
+        We will call each term inside here 'term1', 'term2', and 'term3' in the 
+        code.
+
+         f_{k+1}(x,d1,..,dk) = g( 
+            [[ ok * fk(x,\bar 0) ]] + 
+            [[ ok * (fk(x,d1,...,d(k-1))) -  fk(x,\bar 0)) ]] +  
+            [[dk*fk(x, \bar d)]] ) 
+        """
+        # Should all be in LP.
+        term1 = fp_result
+        #print(term1[0])
+        #term1 = np.dot(x.offset, y.offset)
+        #assert(term1.sum() == fp_result.sum())
+        #print(term1[0])
+        """
+        print(x.offset.sum())
+        print(y.offset.sum())
+        term1 = self._numpy_quantize(np.dot(x.offset, y.offset), sf)
+        print(term1[0])
+        print(fp_result[0])
+        print(sf)
+        exit()
+        """
+        term2 = np.dot(x.delta, y.lp_offset)
+        
+        q_x = x.lp_offset + x.delta
+        term3 = np.dot(q_x, y.delta )
+
+        delta = term2+term3
+
         return SplitTensor(term1, delta)
 
     def _get_data(self, data, batch_index):
@@ -98,6 +132,8 @@ class Linear:
         """
         if train:
             self.saved_input = input
+        #print(np.dot(input, self.weight.offset.T)[0])
+        #exit()
         return np.dot(input, self.weight.offset.T)
 
     def backward(self, grad_output):
@@ -143,7 +179,16 @@ class Linear:
         """
         self.saved_input = input
         result = self.forward(input, train=False)
+        #print(result[0])
+        #exit()
         q_result = self._numpy_quantize(result, self.fwd_scale_factor)
+        """
+        print(input.sum())
+        print(self.weight.offset.T.sum())
+        print(q_result[0])
+        print(self.fwd_scale_factor)
+        exit()
+        """
         self._save_data(self.lp_fwd_outer_result,
                         q_result,
                         batch_index)
@@ -178,6 +223,34 @@ class Linear:
                         self.weight.T(),
                         self.fwd_scale_factor )
 
+    def debug_forward_inner(self, input, batch_index):
+        # Check if this is the first layer where the input needs to be 
+        # quantized.
+
+        """
+        self.saved_input = input
+
+        return SplitTensor(np.dot(input.data(), self.weight.data().T))
+        """
+
+        if not input.is_quantized():
+            #input.quantize(self.num_bits, self.fwd_scale_factor)
+            input.lp_offset = input.offset
+
+        if not self.weight.is_quantized():
+            self.weight.lp_offset = self.weight.offset
+            #self.weight.quantize(self.num_bits, self.fwd_scale_factor)
+
+        self.saved_input = input
+
+        lp_result = self._debug_lp_multiply( \
+                        self._get_data(self.lp_fwd_outer_result, batch_index), 
+                        input,
+                        self.weight.T(),
+                        self.fwd_scale_factor )
+
+        return lp_result
+
     def backward_inner(self, grad_output, batch_index):
         if not grad_output.is_quantized():
             grad_output.quantize(self.num_bits, self.bck_scale_factor)
@@ -190,6 +263,10 @@ class Linear:
                                                     self.saved_input,
                                                     self.bck_scale_factor )
 
+    def debug_backward_inner(self, grad_output, batch_index):
+        self.weight.delta_grad = SplitTensor( np.dot( grad_output.T, 
+                                                      self.saved_input.data() ) )
+
     def step_inner(self, lr):
         assert(self.weight.offset_grad is not None)
         w = self._numpy_quantize( self.weight.delta_grad.data(), 
@@ -198,6 +275,12 @@ class Linear:
         self.weight.delta = self._numpy_quantize( (self.weight.delta - w_x_lr), 
                                                   self.bck_scale_factor)
 
-    def step_svrg_inner(self, w_tilde_grad, g_tilde, alpha):
-        w = self.weight.delta_grad.data()
-        self.weight.offset -= ( alpha * ( w - w_tilde_grad + g_tilde ) )
+    def step_svrg_inner(self, g_tilde, alpha, batch_index):
+        w = self._numpy_quantize( self.weight.delta_grad.data(), 
+                                  self.bck_scale_factor )
+
+        g_tilde = self._numpy_quantize(g_tilde, self.bck_scale_factor)
+        index = batch_index*self.out_features
+        w_tilde_grad = self.lp_back_outer_result[index:index+self.out_features,]
+
+        self.weight.delta -= ( alpha * ( w - w_tilde_grad + g_tilde ) )
