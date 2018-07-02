@@ -105,7 +105,10 @@ class ICrossEntropyLoss(_WeightedLoss):
         super(ICrossEntropyLoss, self).__init__(weight, size_average, reduce)
         
         self.iexp = Interpolator(torch.exp)
-        self.iexp.chunk(min = -100, max = 70, num_points = 100)
+        #self.iexp.chunk(min = -100, max = 70, num_points = 100)
+        self.iexp.adapt(-100, 70, 5.5, 5.5)
+
+        print("Exp Num Points: " + str(len(self.iexp.fn.xin)))
         # Uncomment the line below to get "standard" behaviour.
         # self.iexp = torch.exp # DEBUG
 

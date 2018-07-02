@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import interpolate
+from .quantize import *
 
 class FLog(torch.autograd.Function):
     @staticmethod
@@ -23,5 +24,8 @@ class FLog(torch.autograd.Function):
     def backward(ctx, grad_output):
         input, = ctx.saved_tensors
         grad_input = 1/input
-        grad_input.quantize_()
+        if Quantizer.quantize_fixed:
+            grad_input.quantize_fixed_()
+        else:
+            grad_input.quantize_float_()
         return (grad_input.float()*grad_output.float(), None)

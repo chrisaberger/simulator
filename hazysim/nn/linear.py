@@ -51,10 +51,10 @@ class Linear(Base):
             self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, input):
-        input.quantize_(self.n_exponent_bits, self.n_mantissa_bits)
-        self.weight.quantize_(self.n_exponent_bits, self.n_mantissa_bits)
+        self.quantize(input)
+        self.quantize(self.weight)
         if self.bias is not None:
-            self.bias.quantize_(self.n_exponent_bits, self.n_mantissa_bits)
+            self.quantize(self.bias)
         return F.linear(input, self.weight, self.bias)
 
     def extra_repr(self):

@@ -1,7 +1,6 @@
 import torch
 import torchvision
 import logging
-
 # The model we will analyze!
 model = torchvision.models.resnet50()
 override_bytes_per_elem = 2 # set to None if you don't want to override.

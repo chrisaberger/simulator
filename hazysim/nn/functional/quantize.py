@@ -6,16 +6,53 @@ import sys
 import logging
 import numpy as np
 
-class QuantizeFP:
+class Quantizer:
     n_exponent_bits = 8
     n_mantissa_bits = 23
-    n_bits = n_exponent_bits + n_mantissa_bits + 1
+
+    n_bits = 32
+    scale_factor = 1.0
+    quantize_fixed = False
 
     @staticmethod
-    def set_precision(num_bits, num_mantissa_bits):
-        QuantizeFP.n_exponent_bits = num_bits - (num_mantissa_bits+1)
-        QuantizeFP.n_mantissa_bits = num_mantissa_bits
-        QuantizeFP.n_bits = num_bits
+    def set_float_precision(num_bits, num_mantissa_bits):
+        Quantizer.n_exponent_bits = num_bits - (num_mantissa_bits+1)
+        Quantizer.n_mantissa_bits = num_mantissa_bits
+        Quantizer.quantize_fixed = False
+
+    @staticmethod
+    def set_fixed_precision(scale_factor, num_bits):
+        Quantizer.n_bits = num_bits
+        Quantizer.scale_factor = scale_factor
+        Quantizer.quantize_fixed = True
+
+def quantize_(input):
+    if Quantizer.quantize_fixed:
+        input.quantize_fixed_()
+    else:
+        input.quantize_float_()
+
+def quantize_fixed_(input, scale_factor = None, bits = None, biased=False):
+    inp = input.clone()
+    if bits == None:
+        bits = Quantizer.n_bits
+    if scale_factor == None:
+        scale_factor = Quantizer.scale_factor
+
+    assert bits >= 1, bits
+    bound = math.pow(2.0, bits-1)
+    min_val = - bound
+    max_val = bound - 1
+    if biased:
+        adj_val = 0.5
+    else:
+        # Generate tensor of random values from [0,1]
+        adj_val = torch.Tensor(inp.size()).type(inp.type()).uniform_()
+
+    rounded = inp.div_(scale_factor).add_(adj_val).floor_()
+    clipped_value = rounded.clamp_(min_val, max_val)
+    clipped_value *= scale_factor
+    input.data.copy_(inp.data)
 
 class IEEEFloatingPointData:
     def __init__(self, dtype):
@@ -75,10 +112,13 @@ def break_down_fp_(input):
     mantissa_or_array = np.full(shape=d_1.shape, 
                        fill_value=int(q.mantissa_or_value, 16), 
                        dtype=q.ufixed_type)
+    mantissa_subnormal_or_array = np.full(shape=d_1.shape, 
+                       fill_value=int(0), 
+                       dtype=q.ufixed_type)
     # Do not add 1.<mantissa> to subnormal numbers (ie take 'mantissa_or_array')
-    np.where(subnormal_nums, mantissa_and_array, mantissa_or_array)
+    or_stuff = np.where(subnormal_nums, mantissa_subnormal_or_array, mantissa_or_array)
     mantissa = np.bitwise_or(np.bitwise_and(new_np_array, mantissa_and_array), 
-                             mantissa_or_array)
+                             or_stuff)
     mantissa_float = mantissa/2**(q.n_mantissa)
 
     ################## Process Sign. ##################
@@ -126,10 +166,13 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     mantissa_or_array = np.full(shape=input.shape, 
                        fill_value=int(q.mantissa_or_value, 16), 
                        dtype=q.ufixed_type)
+    mantissa_subnormal_or_array = np.full(shape=input.shape, 
+                       fill_value=int(0), 
+                       dtype=q.ufixed_type)
     # Do not add 1.<mantissa> to subnormal numbers (ie take 'mantissa_or_array')
-    np.where(subnormal_nums, mantissa_and_array, mantissa_or_array)
+    or_stuff = np.where(subnormal_nums, mantissa_subnormal_or_array, mantissa_or_array)
     mantissa = np.bitwise_or(np.bitwise_and(new_np_array, mantissa_and_array), 
-                             mantissa_or_array)
+                             or_stuff)
     mantissa_shift = q.n_mantissa - n_mantissa_bits
     mantissa = np.left_shift(np.right_shift(mantissa, mantissa_shift), 
                                             mantissa_shift)
@@ -151,26 +194,25 @@ def quantize_floating_point_(input, n_exponent_bits, n_mantissa_bits):
     exponent_filter = exponent_raw != q.special_exponent
     return np.where(exponent_filter, reconstructed_val, input)
 
-def quantize_(input, n_exponent_bits = None, n_mantissa_bits = None):
+def quantize_float_(input, n_exponent_bits = None, n_mantissa_bits = None):
     if n_exponent_bits is None:
-        n_exponent_bits = QuantizeFP.n_exponent_bits
+        n_exponent_bits = Quantizer.n_exponent_bits
     if n_mantissa_bits is None:
-        n_mantissa_bits = QuantizeFP.n_mantissa_bits
-
-    #print("num exponent: " + str(n_exponent_bits) + 
-    #      " num mantissa: " + str(n_mantissa_bits))
+        n_mantissa_bits = Quantizer.n_mantissa_bits
 
     in_shape = input.shape
     d_1 = input.reshape(input.numel()).detach()
     new_array = quantize_floating_point_(
                     d_1.numpy(), n_exponent_bits, n_mantissa_bits)
-    input.data = torch.tensor(new_array, 
+    input.data.copy_(torch.tensor(new_array, 
                               dtype=input.dtype, 
                               requires_grad=input.requires_grad) \
-                                .reshape(in_shape).data
+                                .reshape(in_shape).data)
 
 
 # Monkey patch torch.Tensor
 torch.Tensor.quantize_ = quantize_
+torch.Tensor.quantize_float_ = quantize_float_
+torch.Tensor.quantize_fixed_ = quantize_fixed_
 torch.Tensor.break_down_fp_ = break_down_fp_
 
